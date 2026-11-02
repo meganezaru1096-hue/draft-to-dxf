@@ -1,0 +1,10 @@
+*.zip
+*.d2d.json
+*.d2dw.json
+*.settings.json
+*.keystore
+*.jks
+*.key
+*.pem
+profile-*/
+denied-profile-*/
