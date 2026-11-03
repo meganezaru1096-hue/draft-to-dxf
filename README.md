@@ -4,7 +4,7 @@ PDF・JPEG・PNG・TIFFの図面を線・円・円弧に変換し、修正して
 
 ## ブラウザで使う
 
-**[Draft to DXF を開く](https://meganezaru1096-hue.github.io/draft-to-dxf/)**
+**[Draft to DXF を開く](https://meganezaru1096-hue.github.io/draft-to-dxf/?v=20261103)**
 
 URLを開くだけで使用できます。ZIPのダウンロード・展開・追加インストールは不要です。初回は処理エンジンの読み込みに時間がかかります。
 図面はサーバーへ送信せず、ブラウザ内で処理します。完成したPDF・DXFは保存ボタンから保存できます。
@@ -12,7 +12,7 @@ URLを開くだけで使用できます。ZIPのダウンロード・展開・�
 
 ## ZIP版のダウンロード
 
-**[Draft to DXF をダウンロード（ZIP）](https://github.com/meganezaru1096-hue/draft-to-dxf/releases/download/v2026.11.02/Draft_to_DXF_2026-11-02.zip)**
+**[Draft to DXF をダウンロード（ZIP）](https://github.com/meganezaru1096-hue/draft-to-dxf/releases/download/v2026.11.03/Draft_to_DXF_2026-11-03.zip)**
 
 [リリース一覧](https://github.com/meganezaru1096-hue/draft-to-dxf/releases)
 
@@ -25,7 +25,17 @@ URLを開くだけで使用できます。ZIPのダウンロード・展開・�
 
 ZIPの中を直接開かず、必ず展開してください。「アプリ本体」「ライセンス」は削除・移動せず、フォルダごと保管します。Python等の追加インストールは不要です。
 
-GitHubの「Source code」や「Code → Download ZIP」は配布用ソフトではありません。上記のダウンロードリンク、またはリリース内の `Draft_to_DXF_2026-11-02.zip` を使用してください。
+ZIP版は上記のリンク、またはリリース内の `Draft_to_DXF_2026-11-03.zip` を使用してください。ブラウザで使う場合はダウンロード不要です。
+
+## 今回の改善
+
+- 起動準備中にロード演出と実際の準備段階を表示。
+- 直線の許容ずれの標準値を10pxへ変更（保存済み設定は維持）。
+- 削除の標準ショートカットはD。既存の個別キー設定や競合は保護。
+- 直線統合で円弧を選んだ場合、直線化してから1本へ統合。失敗時は元の円弧を保持し、成功時はUndo1回で復元。
+- 測定線は測定後も表示し、別の操作で消去。測定値は実寸合わせに引き続き利用可能。
+- 文字・画像・塗りが併存するPDFでも、可能な直線・円弧を直接保持して残りだけ追加抽出。矩形クリッピングも直接処理。
+- 複雑な切り抜きや線を覆う描画など、直接取込で見た目を失う場合は画像処理を維持。
 
 ## 主な機能
 

@@ -15,7 +15,13 @@ window.DraftMeasure = {
     return {points:value.points.map(p=>p.slice()),knownMm:value.knownMm,mmPerPixel:value.mmPerPixel};
   },
   init(editor){
-    editor.measurePoints=[];editor.calibration=null;editor.scaleHistory=[];
+    editor.measurePoints=[];editor.measureVisible=false;editor.calibration=null;editor.scaleHistory=[];
+    const dismiss=()=>{if(editor.measurePoints.length===2&&this.dismiss(editor))editor.draw();};
+    document.addEventListener('click',event=>{if(event.target!==editor.canvas)dismiss();},true);
+    document.addEventListener('change',dismiss,true);
+    document.addEventListener('keydown',event=>{if(!['Control','Shift','Alt','Meta'].includes(event.key))dismiss();},true);
+    editor.canvas.addEventListener('wheel',dismiss,{passive:true,capture:true});
+    editor.canvas.addEventListener('pointerdown',event=>{if(event.button!==0||event.shiftKey||editor.spacePan||editor.mode!=='measure')dismiss();},true);
     document.getElementById('mode').add(new Option('距離・縮尺','measure'));
     document.getElementById('measureMode').onclick=()=>{if(this.method()==='points')editor.setMode('measure');else{if(editor.mode!=='select'){const selected=new Set(editor.selected);editor.setMode('select');editor.selected=selected;}window.DraftLayout?.reveal('measure');editor.update();editor.draw();}};
     document.getElementById('calibrationMethod').addEventListener('change',()=>{if(this.method()==='line'&&editor.mode==='measure')editor.setMode('select');editor.update();editor.draw();});
@@ -34,14 +40,15 @@ window.DraftMeasure = {
     document.getElementById('undoScale').onclick=()=>{if(editor.busy||!editor.scaleHistory.length)return;editor.calibration=editor.scaleHistory.pop();editor.dirty=true;editor.update();editor.draw();};
     document.getElementById('clearMeasure').onclick=()=>{editor.measurePoints=[];editor.update();editor.draw();};
   },
-  commit(editor,value){editor.scaleHistory.push(editor.calibration);if(editor.scaleHistory.length>30)editor.scaleHistory.shift();editor.calibration=value;editor.dirty=true;editor.update();editor.draw();},
-  reset(editor,value){editor.calibration=this.validate(value);editor.scaleHistory=[];editor.measurePoints=[];},
+  dismiss(editor){const visible=!!editor.measureVisible;editor.measureVisible=false;return visible;},
+  commit(editor,value){this.dismiss(editor);editor.scaleHistory.push(editor.calibration);if(editor.scaleHistory.length>30)editor.scaleHistory.shift();editor.calibration=value;editor.dirty=true;editor.update();editor.draw();},
+  reset(editor,value){editor.calibration=this.validate(value);editor.scaleHistory=[];editor.measurePoints=[];editor.measureVisible=false;},
   pick(editor,point){
     if(document.getElementById('measureSnap').checked){
       point=DraftGeometry.snap(editor,point).point;
     }
     if(editor.measurePoints.length===2)editor.measurePoints=[];
-    editor.measurePoints.push(point);editor.update();editor.draw();
+    editor.measurePoints.push(point);editor.measureVisible=true;editor.update();editor.draw();
   },
   update(editor){
     const ready=!!editor.doc&&!editor.busy,points=editor.measurePoints||[],cal=editor.calibration;
@@ -65,8 +72,11 @@ window.DraftMeasure = {
     document.getElementById('scaleState').textContent=cal?`DXF：実寸設定済み（1 px = ${cal.mmPerPixel.toPrecision(7)} mm）`:'DXF：実寸未設定（用紙上の寸法）';
   },
   draw(editor,c){
-    const pts=editor.measurePoints||[];if(editor.mode!=='measure'||pts.length!==1)return;
+    const pts=editor.measurePoints||[];if(editor.mode!=='measure'||!editor.measureVisible||!pts.length)return;
+    c.save();
     c.strokeStyle='#148443';c.fillStyle='#148443';c.lineWidth=2/editor.view.scale;
+    if(pts.length===2){c.beginPath();c.moveTo(...pts[0]);c.lineTo(...pts[1]);c.stroke();}
     pts.forEach((p,i)=>{c.beginPath();c.arc(...p,5/editor.view.scale,0,Math.PI*2);c.stroke();c.font=`${14/editor.view.scale}px sans-serif`;c.fillText(String(i+1),p[0]+8/editor.view.scale,p[1]-8/editor.view.scale);});
+    c.restore();
   }
 };

@@ -95,7 +95,7 @@
   el('rotateCCW').textContent='左90°';el('rotateCW').textContent='右90°';
   const quick=make('div','quick-actions');quick.setAttribute('role','toolbar');quick.setAttribute('aria-label','選択した線の修正');
   const selectionInfo=make('span','selection-info','線を選ぶと修正できます');selectionInfo.id='selectionInfo';quick.append(selectionInfo);
-  for(const [id,label,tip] of [['horizontal','水平','直線の中心と長さを保って水平に。接続先は動かしません'],['vertical','垂直','直線の中心と長さを保って垂直に。接続先は動かしません'],['merge','統合','選択した直線を1本に統合。許容ずれは「設定」で変更'],['mergeArcs','円・円弧統合','選択した線と円弧から円周を復元。許容ずれの数値制限は使いません。3/4周以上なら閉じた円に補完'],['corner','角を作る','残したい側をCtrl＋クリックで2本選択し、交点でつなぐ'],['linearize','直線化','選択した円弧を直線に変更。一周の円は対象外'],['delete','削除','選択した線を削除']]){
+  for(const [id,label,tip] of [['horizontal','水平','直線の中心と長さを保って水平に。接続先は動かしません'],['vertical','垂直','直線の中心と長さを保って垂直に。接続先は動かしません'],['merge','統合','円弧は両端を結ぶ直線へ変えてから、選択した線を1本に統合。許容ずれは「設定」で変更。一周の円は対象外'],['mergeArcs','円・円弧統合','選択した線と円弧から円周を復元。許容ずれの数値制限は使いません。3/4周以上なら閉じた円に補完'],['corner','角を作る','残したい側をCtrl＋クリックで2本選択し、交点でつなぐ'],['linearize','直線化','選択した円弧を直線に変更。一周の円は対象外'],['delete','削除','選択した線を削除']]){
     const b=make('button',id==='delete'?'danger-action':'',label);b.type='button';b.id='quick-'+id;b.title=tip;b.onclick=()=>{el(id).click();window.draftEditor?.canvas.focus({preventScroll:true});};quick.append(b);proxies.push([b,id,tip]);
     b.prepend(icon(id));
   }
@@ -129,7 +129,7 @@
       const refs=[...e.selected];let lines=0,arcs=0;
       if(e.doc)for(const ref of refs){const [pi,si]=ref.split(':').map(Number);const s=e.doc.paths[pi]?.segments[si];if(s?.type==='line')lines++;else if(s)arcs++;}
       for(const [b,id,tip] of proxies){
-        const needsLines=['horizontal','vertical','merge','corner'].includes(id);
+        const needsLines=['horizontal','vertical','corner'].includes(id);
         b.disabled=el(id).disabled||(needsLines&&arcs>0);
         const key=window.DraftSettings?.key(id),suffix=key?'（'+key+'）':'';
         b.title=(b.disabled?(e.busy?'現在は編集できません。':needsLines&&arcs?'直線だけを選択してください。':id==='corner'?'直線を2本選択してください。':id==='mergeArcs'?'円周の線・円弧を2つ以上選択してください。':id==='linearize'?'円弧を選択してください。':'線を選択してください。')+tip:tip)+suffix;

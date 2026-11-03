@@ -11,7 +11,7 @@
     ['measure','測定','M','tool-measure'],['region','範囲を指定','R','tool-region'],
     ['fit','全体表示','F','fit'],['fitSelected','選択を拡大','Shift+F','fitSelected'],
     ['saveProject','編集データ保存','Ctrl+S','saveProject'],['undo','元に戻す','Ctrl+Z','undo'],['redo','やり直す','Ctrl+Y','redo'],
-    ['selectAll','対象を全選択','Ctrl+A','selectAll'],['delete','選択を削除','Delete','quick-delete'],
+    ['selectAll','対象を全選択','Ctrl+A','selectAll'],['delete','選択を削除','D','quick-delete'],
     ['horizontal','水平にする','','quick-horizontal'],['vertical','垂直にする','','quick-vertical'],
     ['merge','直線を統合','','quick-merge'],['align','同一直線に整列','','align'],['mergeArcs','円・円弧統合','','quick-mergeArcs'],
     ['corner','角を作る','','quick-corner'],['linearize','円弧を直線化','','quick-linearize'],
@@ -31,7 +31,7 @@
   const defaultKeys=Object.fromEntries(actions.map(([id,,key])=>[id,key]));
   const storageKey='draft-to-dxf-settings-v1';let keys={...defaultKeys},values={...defaults},storageError='',restoredRecord=null,savedAt=0,revision=0,applying=false;
   const validKey=key=>typeof key==='string'&&(key===''||/^(Ctrl\+)?(Shift\+)?([A-Z0-9]|Delete|F[2-4]|F[6-9]|F10)$/.test(key))&&!/^Ctrl\+(Shift\+)?([WTNRLOPQ]|F4|F6)$/.test(key)&&key!=='Ctrl+Shift+Delete';
-  function completeKeys(raw){if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;const next={};for(const [id] of actions){const value=['extend','copySelected','offsetSelected','trimTo'].includes(id)&&!Object.hasOwn(raw,id)?'':raw[id];if(!validKey(value))return null;next[id]=value;}const bound=Object.values(next).filter(Boolean);return new Set(bound).size===bound.length?next:null;}
+  function completeKeys(raw,migrate=false){if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;const next={};for(const [id] of actions){const value=['extend','copySelected','offsetSelected','trimTo'].includes(id)&&!Object.hasOwn(raw,id)?'':raw[id];if(!validKey(value))return null;next[id]=value;}const bound=Object.values(next).filter(Boolean);if(new Set(bound).size!==bound.length)return null;if(migrate&&next.delete==='Delete'&&!Object.entries(next).some(([id,key])=>id!=='delete'&&key==='D'))next.delete='D';return next;}
   function validValue(id,value){const n=$(id);if(!n)return false;if(n.tagName==='SELECT')return typeof value==='string'&&[...n.options].some(o=>o.value===value);return n.type==='checkbox'?typeof value==='boolean':typeof value==='string'&&value.trim()!==''&&Number.isFinite(Number(value))&&(!n.min||Number(value)>=Number(n.min))&&(!n.max||Number(value)<=Number(n.max));}
   const isRecord=data=>data?.version===1&&data.values&&typeof data.values==='object'&&!Array.isArray(data.values);
   const timestamp=data=>Number.isSafeInteger(data?.savedAt)&&data.savedAt>=0?Math.min(data.savedAt,Date.now()+86400000):0;
@@ -39,7 +39,7 @@
   try{legacyPdfDpi=localStorage.getItem('draft-to-dxf-pdf-dpi-v1');}catch(_){}
   try{const data=JSON.parse(localStorage.getItem(storageKey)||'null');if(data!==null&&!isRecord(data))throw Error('Invalid preferences');if(data)restoredRecord=data;}catch(_){storageError='保存した設定を確認しています…';}
   function applyRecord(data,notify=false){
-    savedAt=timestamp(data);keys=completeKeys(data?.keys)||{...defaultKeys};values={...defaults};
+    savedAt=timestamp(data);keys=completeKeys(data?.keys,(data?.keyDefaultsVersion||1)<2)||{...defaultKeys};values={...defaults};
     for(const id of savedControls){const value=data?.values?.[id]??(id==='pdfDpi'?legacyPdfDpi:undefined);if(validValue(id,value))values[id]=value;}
     applying=true;try{for(const id of savedControls){const n=$(id);if(n.type==='checkbox')n.checked=values[id];else n.value=values[id];if(notify)n.dispatchEvent(new Event('change',{bubbles:true}));}}finally{applying=false;}
   }
@@ -59,7 +59,7 @@
   }
   let messageVersion=0,writeQueue=Promise.resolve();
   function report(text,error=false){messageVersion++;message.textContent=text;message.classList.toggle('is-error',error);}
-  const snapshot=()=>({version:1,savedAt,keys:{...keys},values:{...values}});
+  const snapshot=()=>({version:1,keyDefaultsVersion:2,savedAt,keys:{...keys},values:{...values}});
   // A second browser store recovers preferences when localStorage is unavailable.
   // This database is intentionally separate from drawing recovery and its cleanup.
   const database=new Promise(resolve=>{
@@ -120,11 +120,11 @@
   panelMap.get('measurement').append(make('p','note','実寸合わせを「2点を指定」または「選択した直線」から選びます。直線方式は1本選択し、その実際の長さをmmで入力します。設定方式は保存されますが、図面の実寸倍率は適用ボタンを押すまで変わりません。円弧は対象外です。'));
   panelMap.get('inspection').append(make('p','note','変更後は作業画面の「確認候補を検出」で再検出してください。基準の単位は元画像上のpxです。'));
   const transfer=make('div','settings-transfer'),saveSettings=make('button','','設定をファイル保存'),loadSettings=make('button','','設定ファイルを読込'),settingsFile=make('input','');saveSettings.id='exportSettings';loadSettings.id='importSettings';settingsFile.id='settingsFile';settingsFile.type='file';settingsFile.accept='.json,application/json';settingsFile.hidden=true;transfer.append(saveSettings,loadSettings,settingsFile);
-  saveSettings.onclick=()=>{try{DraftExport.download(new Blob([JSON.stringify({format:'draft-to-dxf-settings',version:1,keys,values},null,2)],{type:'application/json'}),'Draft-to-DXF.settings.json');report('設定ファイルの保存を開始しました。別のPCでも「設定ファイルを読込」で再利用できます。');}catch(_){report('設定ファイルを保存できませんでした。',true);}};
+  saveSettings.onclick=()=>{try{DraftExport.download(new Blob([JSON.stringify({format:'draft-to-dxf-settings',version:1,keyDefaultsVersion:2,keys,values},null,2)],{type:'application/json'}),'Draft-to-DXF.settings.json');report('設定ファイルの保存を開始しました。別のPCでも「設定ファイルを読込」で再利用できます。');}catch(_){report('設定ファイルを保存できませんでした。',true);}};
   loadSettings.onclick=()=>settingsFile.click();settingsFile.onchange=async()=>{const file=settingsFile.files[0];if(!file)return;try{
     if(window.draftEditor?.busy)throw Error('処理が終わってから設定を読み込んでください。');
     if(file.size>100000)throw Error('設定ファイルは100KB以下で指定してください。');const data=JSON.parse(await file.text());
-    const importedKeys=completeKeys(data?.keys),importedValues={...data?.values};
+    const importedKeys=completeKeys(data?.keys,(data?.keyDefaultsVersion||1)<2),importedValues={...data?.values};
     if(!Object.hasOwn(importedValues,'calibrationMethod'))importedValues.calibrationMethod=defaults.calibrationMethod;
     for(const id of savedControls)if(!controls.includes(id)&&!Object.hasOwn(importedValues,id))importedValues[id]=values[id];
     if(data?.format!=='draft-to-dxf-settings'||data.version!==1||!data.values||![...savedControls].every(id=>validValue(id,importedValues[id]))||!importedKeys)throw Error('対応していない、不正な値またはキー重複を含む設定ファイルです。');

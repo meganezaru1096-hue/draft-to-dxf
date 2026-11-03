@@ -54,17 +54,23 @@ window.renderLocalPdf = async (file, pageNumber, dpi=300, {vectors=false,mode=ve
     if (width*height > 40000000) throw sizeError();
     const canvas = document.createElement('canvas');
     canvas.width=width; canvas.height=height;
-    let method='raster',fallbackReason=null;
+    let method='raster',fallbackReason=null,extracted=null;
     if(mode!=='raster'){
       try{
-        const extracted=DraftPdfVector.extract(await page.getOperatorList(),lib.OPS,viewport.transform,[width,height]);
-        if(mode==='auto'&&(extracted.images||extracted.fills||extracted.text))throw Error('文字・画像・塗り図形も含めて、図面全体から線を抽出します。');
-        canvas.draftPaths=extracted.paths;canvas.draftSummary=extracted.summary+(large?' 大判プレビューのみ解像度調整（線の実寸は維持）。':'');method='vector';
+        const operators=await page.getOperatorList();
+        extracted=DraftPdfVector.extract(operators,lib.OPS,viewport.transform,[width,height]);
+        if(extracted.images||extracted.fills||extracted.text){
+          if(extracted.unsafeOverpaint)throw Error('線の上に画像・塗り等が重なるため、隠れた線を復元しないよう見た目から抽出します。');
+          if(rasterTooLarge)throw sizeError();
+          if(previewScale!==1){effectiveDpi=dpi;viewport=fullViewport;width=fullWidth;height=fullHeight;canvas.width=width;canvas.height=height;extracted=DraftPdfVector.extract(operators,lib.OPS,viewport.transform,[width,height]);}
+          method='hybrid';
+        }else{canvas.draftPaths=extracted.paths;method='vector';}
+        canvas.draftSummary=extracted.summary+(large&&method==='vector'?' 大判プレビューのみ解像度調整（線の実寸は維持）。':'');
         document.getElementById('pdfVectorWarning').textContent='';
       }catch(error){
         // A requested vector import must not stop merely because visible clipping needs rendering.
         const clipping=error.code==='PDF_VECTOR_CLIPPING';
-        if(mode==='vector'&&!clipping)throw error;
+        if(mode==='vector'&&!clipping&&!extracted?.unsafeOverpaint)throw error;
         if(rasterTooLarge)throw sizeError();
         // Vector preview reduction must never lower raster tracing resolution.
         effectiveDpi=dpi;viewport=fullViewport;width=fullWidth;height=fullHeight;canvas.width=width;canvas.height=height;
@@ -75,6 +81,14 @@ window.renderLocalPdf = async (file, pageNumber, dpi=300, {vectors=false,mode=ve
     }
     activePdfRender=page.render({canvasContext:canvas.getContext('2d'),viewport,background:'rgb(255,255,255)'});
     await activePdfRender.promise;
+    if(method==='hybrid'){
+      const remainder=document.createElement('canvas');remainder.width=width;remainder.height=height;
+      const nativeOps=new Set(extracted.nativeOps);
+      activePdfRender=page.render({canvasContext:remainder.getContext('2d'),viewport,background:'rgb(255,255,255)',operationsFilter:index=>!nativeOps.has(index)});
+      await activePdfRender.promise;
+      canvas.draftTraceCanvas=remainder;canvas.draftNativePaths=extracted.paths;
+      canvas.draftImportNote='ベクター線を直接保持し、文字・画像・塗りの部分だけ追加抽出';
+    }
     canvas.draftDpi=effectiveDpi;
     window.lastPdfRender = {version:lib.version,page:pageNumber,pages:doc.numPages,width,height,dpi:effectiveDpi,requestedDpi:dpi,method,fallbackReason};
     return canvas;

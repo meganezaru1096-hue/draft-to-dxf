@@ -6,11 +6,12 @@ window.probeState={ready:false,results:[],errors:[]};
 const editor=window.draftEditor=new DraftEditor(document.getElementById('preview'),message=>{if(!recovering&&message.action!=='historyRestore')DraftHistory.begin(editor,DraftCommandLabel(message));editor.lastRequest={...message};setBusy(true);worker.postMessage(message,message.pixels?[message.pixels]:[]);});
 let pendingProject=null,nextMetadata=null;
 function setBusy(value){input.disabled=value;convertButton.disabled=value;editor.setBusy(value);}
-function fail(text){const matches=[...String(text).matchAll(/ValueError: ([^\n]+)/g)];status.textContent='エラー: '+(matches.length?matches.at(-1)[1]:text);logBox.textContent+='\n'+text;window.probeState.errors.push(text);}
+function fail(text){const matches=[...String(text).matchAll(/ValueError: ([^\n]+)/g)];status.textContent='エラー: '+(matches.length?matches.at(-1)[1]:text);logBox.textContent+='\n'+text;window.probeState.errors.push(text);if(!window.probeState.ready)window.DraftStartup?.fail();}
 function bindWorker(){const runtime=worker;
 runtime.onerror=event=>{if(runtime!==worker)return;event.preventDefault();window.DraftRuntime.failed=true;DraftHistory.abort(editor);editor.comparing=false;editor.pendingMove=null;editor.pendingPreview=null;editor.drag=null;fail(event.message);setBusy(true);status.textContent+=' 編集データを保存できます。「処理を再起動」で復旧してください。';};
 runtime.onmessage=async({data})=>{
   if(runtime!==worker)return;
+  if(data.kind==='startup')window.DraftStartup?.stage(data.phase);
   if(data.kind==='log')logBox.textContent+=data.text+'\n';
   if(data.kind==='progress')status.textContent=data.text;
   if(data.kind==='preview'){DraftWorkflow.showPreview(editor,data.response,data.label);status.textContent='編集を反映しています…';}
@@ -28,7 +29,7 @@ runtime.onmessage=async({data})=>{
     else editor.acceptEdit(data.response);
     setBusy(false);status.textContent=editLabel+'を反映しました。';
   }
-  if(data.kind==='ready'){await DraftSettings.ready;if(runtime!==worker)return;if(recovering&&editor.doc){worker.postMessage({kind:'restore',paths:editor.doc.paths});return;}recovering=false;window.DraftRuntime.failed=false;window.probeState.ready=true;setBusy(false);if(!window.probeState.errors.length)status.textContent=editor.doc?'準備完了':'図面を開いてください';}
+  if(data.kind==='ready'){await DraftSettings.ready;if(runtime!==worker)return;if(recovering&&editor.doc){worker.postMessage({kind:'restore',paths:editor.doc.paths});return;}recovering=false;window.DraftRuntime.failed=false;window.probeState.ready=true;window.DraftStartup?.finish();setBusy(false);if(!window.probeState.errors.length)status.textContent=editor.doc?'準備完了':'図面を開いてください';}
   if(data.kind==='result'&&!recovering){
     const r=data.result;window.probeState.results.push(r);if(window.probeState.results.length>2)window.probeState.results.shift();document.getElementById('summary').textContent=r.summary;
     if(r.versions)logBox.textContent+=JSON.stringify(r.versions,null,2)+'\n';
@@ -60,11 +61,12 @@ async function convertSelected(eventOrSource=null){
     else if(isTiff){status.textContent='TIFFを読み込んでいます…';canvas=await renderLocalTiff(file,page);}
     else{document.getElementById('pageCount').textContent='';const bitmap=await createImageBitmap(file);if(bitmap.width*bitmap.height>24000000){bitmap.close();throw Error('2400万画素以下でお試しください。');}canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0);bitmap.close();}
     if(token!==conversionToken)return;
-    const channels=canvas.draftGrayPixels?1:4,pixels=canvas.draftGrayPixels||canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.buffer,dpi=canvas.draftDpi||(isPdf?300:Number(document.getElementById('dpi').value));
+    const tracing=canvas.draftTraceCanvas||canvas,channels=tracing.draftGrayPixels?1:4,pixels=tracing.draftGrayPixels||tracing.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.buffer,dpi=canvas.draftDpi||(isPdf?300:Number(document.getElementById('dpi').value));
     if(!Number.isFinite(dpi)||dpi<1||dpi>9600)throw Error('出力解像度は1〜9600dpiで指定してください。');
     nextMetadata={name:file.name.replace(/\.[^.]+$/,'')+(isPdf||isTiff?'_p'+page:''),dpi,dirty:true,note:canvas.draftImportNote};status.textContent='変換中…';
     if(canvas.draftPaths){worker.postMessage({kind:'import',paths:canvas.draftPaths,width:canvas.width,height:canvas.height,background:canvas.toDataURL('image/png'),summary:canvas.draftSummary});return;}
-    worker.postMessage({kind:'image',width:canvas.width,height:canvas.height,pixels,channels,noise:Number(document.getElementById('noise').value)},[pixels]);
+    worker.postMessage({kind:'image',width:canvas.width,height:canvas.height,pixels,channels,noise:Number(document.getElementById('noise').value),...(canvas.draftNativePaths?{nativePaths:canvas.draftNativePaths,background:canvas.toDataURL('image/png')}:{} )},[pixels]);
+    if(tracing!==canvas)tracing.width=tracing.height=0;
     canvas.width=canvas.height=0;
   }catch(error){if(token!==conversionToken)return;nextMetadata=null;if(window.DraftSession)DraftSession.pending=null;window.probeState.ready=true;fail(String(error));setBusy(false);}
 }
