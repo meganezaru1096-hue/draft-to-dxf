@@ -1,0 +1,489 @@
+[
+  {
+    "component": "Pyodide 0.28.1",
+    "source": "https://raw.githubusercontent.com/pyodide/pyodide/0.28.1/LICENSE",
+    "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+    "file": "Pyodide-0.28.1-LICENSE.txt"
+  },
+  {
+    "component": "CPython 3.13.2",
+    "source": "https://raw.githubusercontent.com/python/cpython/v3.13.2/LICENSE",
+    "sha256": "78b12c3a81360b357002334f0e70ea0e92eebf7a9b358805c03c48484945f3bb",
+    "file": "CPython-3.13.2-LICENSE.txt"
+  },
+  {
+    "component": "CPython 3.13.2 third-party notices",
+    "source": "https://raw.githubusercontent.com/python/cpython/v3.13.2/Doc/license.rst",
+    "sha256": "62f2c9c2c75d511170eb464ad5f83b78cc1f37eb2eb49c2846c9aa6c4557ee99",
+    "file": "CPython-3.13.2-THIRD-PARTY.txt"
+  },
+  {
+    "component": "Emscripten 4.0.9",
+    "source": "https://raw.githubusercontent.com/emscripten-core/emscripten/4.0.9/LICENSE",
+    "sha256": "620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86",
+    "file": "Emscripten-4.0.9-LICENSE.txt"
+  },
+  {
+    "component": "OpenBLAS 0.3.26",
+    "source": "https://raw.githubusercontent.com/OpenMathLib/OpenBLAS/v0.3.26/LICENSE",
+    "sha256": "190b5a9c8d9723fe958ad33916bd7346d96fab3c5ea90832bb02d854f620fcff",
+    "file": "OpenBLAS-0.3.26-LICENSE.txt"
+  },
+  {
+    "component": "contourpy-1.3.1",
+    "archive": "contourpy-1.3.1-cp313-cp313-pyodide_2025_0_wasm32.whl",
+    "archive_sha256": "3fe3d224ef8129f7be7062cf44c26a38a6cb6a1f07e11e93f33ec502476a40e7",
+    "files": [
+      {
+        "source": "contourpy-1.3.1.dist-info/LICENSE",
+        "file": "依存ライブラリ/contourpy-1.3.1/01_LICENSE.txt",
+        "sha256": "c7d0a153bffaa104044463ebc633793d451722efd3138b5ffd2527b40f1505a2"
+      }
+    ]
+  },
+  {
+    "component": "cycler-0.12.1",
+    "archive": "cycler-0.12.1-py3-none-any.whl",
+    "archive_sha256": "4c163eac65b7ced9007b4259575c045a172dd45d36de7e25ae97b2be67b4a7d1",
+    "files": [
+      {
+        "source": "cycler-0.12.1.dist-info/LICENSE",
+        "file": "依存ライブラリ/cycler-0.12.1/01_LICENSE.txt",
+        "sha256": "f1218143d766da3fea66f13396b7f15df46a83303f29bf96ba6e98eb4d42f408"
+      }
+    ]
+  },
+  {
+    "component": "decorator-5.2.1",
+    "archive": "decorator-5.2.1-py3-none-any.whl",
+    "archive_sha256": "9b4debac88fa5916547843f759357bc05a67551055b63259c6ffd7ef6048790f",
+    "files": [
+      {
+        "source": "decorator-5.2.1.dist-info/LICENSE.txt",
+        "file": "依存ライブラリ/decorator-5.2.1/01_LICENSE.txt",
+        "sha256": "914ee6ed78a5efc173bda698f2708444ca9d140fcc4080c60d0503d40db39da6"
+      }
+    ]
+  },
+  {
+    "component": "fonttools-4.56.0",
+    "archive": "fonttools-4.56.0-py3-none-any.whl",
+    "archive_sha256": "862f1298792269b5882f145efc0b2683b5101d30152e43152f2a9ee90e55755a",
+    "files": [
+      {
+        "source": "fonttools-4.56.0.dist-info/LICENSE",
+        "file": "依存ライブラリ/fonttools-4.56.0/01_LICENSE.txt",
+        "sha256": "6787208f83f659ccbc2223b2fde952ffa6f7e8aca62f1a8a2bf5bc51bb1b2383"
+      }
+    ]
+  },
+  {
+    "component": "imageio-2.37.0",
+    "archive": "imageio-2.37.0-py3-none-any.whl",
+    "archive_sha256": "fcbfda2703dd299c60145e9a08824101860712d142841ecf0e804ccc3ea41283",
+    "files": [
+      {
+        "source": "imageio-2.37.0.dist-info/LICENSE",
+        "file": "依存ライブラリ/imageio-2.37.0/01_LICENSE.txt",
+        "sha256": "ae599ea50a494efb725e420aab35d1f759200cfe4186b6c64a30ba49db3fd064"
+      }
+    ]
+  },
+  {
+    "component": "kiwisolver-1.4.8",
+    "archive": "kiwisolver-1.4.8-cp313-cp313-pyodide_2025_0_wasm32.whl",
+    "archive_sha256": "01451f4a9f0dcd93ea6d9e2e577a793d4c9082fbf1f59cfb8ff3ba376f28d3e3",
+    "files": [
+      {
+        "source": "kiwisolver-1.4.8.dist-info/licenses/LICENSE",
+        "file": "依存ライブラリ/kiwisolver-1.4.8/01_LICENSE.txt",
+        "sha256": "238e69906d7e507a94832b9831131862c4176d58c002b388e2e99db5d83677d2"
+      }
+    ]
+  },
+  {
+    "component": "lazy_loader-0.4",
+    "archive": "lazy_loader-0.4-py3-none-any.whl",
+    "archive_sha256": "de2de95d0b565602ebb021541ca4aee2ce13fe8c6368715cba30784fbf83f0f8",
+    "files": [
+      {
+        "source": "lazy_loader-0.4.dist-info/LICENSE.md",
+        "file": "依存ライブラリ/lazy_loader-0.4/01_LICENSE.md",
+        "sha256": "797b6937a4f976836efbbbb3ae333d7866ddc3eb3cb152972b2be348d3529372"
+      }
+    ]
+  },
+  {
+    "component": "matplotlib-3.8.4",
+    "archive": "matplotlib-3.8.4-cp313-cp313-pyodide_2025_0_wasm32.whl",
+    "archive_sha256": "4082bc4a9f7ab494137014991fe8afe83218aaaeb6bb4dbd6fd2b40c464742e5",
+    "files": [
+      {
+        "source": "matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE",
+        "file": "依存ライブラリ/matplotlib-3.8.4/01_LICENSE.txt",
+        "sha256": "5a1a81ea301728c8bba2933da832c0cd62229daf20893a024ab3d53244468dbc"
+      },
+      {
+        "source": "matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_AMSFONTS",
+        "file": "依存ライブラリ/matplotlib-3.8.4/02_LICENSE_AMSFONTS.txt",
+        "sha256": "155141d59877f338f6e1c0805de9b79964dce71fe5d2a56c44e38b2c0f7e35ee"
+      },
+      {
+        "source": "matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_BAKOMA",
+        "file": "依存ライブラリ/matplotlib-3.8.4/03_LICENSE_BAKOMA.txt",
+        "sha256": "93adb2b53c02b7ce06b26bff41358c21248f42fed287b633ec4c31038377cdbb"
+      },
+      {
+        "source": "matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_CARLOGO",
+        "file": "依存ライブラリ/matplotlib-3.8.4/04_LICENSE_CARLOGO.txt",
+        "sha256": "61902d5eef34dd24870b7287a96260d3328233b96f7202bf70ad6e2a0da2de3f"
+      },
+      {
+        "source": "matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_COLORBREWER",
+        "file": "依存ライブラリ/matplotlib-3.8.4/05_LICENSE_COLORBREWER.txt",
+        "sha256": "01173653fe745ce2124ec156d78b460582d2a719d2d9212804267e95fd2c97e7"
+      },
+      {
+        "source": "matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_COURIERTEN",
+        "file": "依存ライブラリ/matplotlib-3.8.4/06_LICENSE_COURIERTEN.txt",
+        "sha256": "ac81f717aaff9456b88010fc55382a8dff199e4c4bcc5d61e040c3f7063beb43"
+      },
+      {
+        "source": "matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_JSXTOOLS_RESIZE_OBSERVER",
+        "file": "依存ライブラリ/matplotlib-3.8.4/07_LICENSE_JSXTOOLS_RESIZE_OBSERVER.txt",
+        "sha256": "597756adcb51f243ef4fb386920377f61d012ace0904364e1a8ee9aaec6afc84"
+      },
+      {
+        "source": "matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_QHULL",
+        "file": "依存ライブラリ/matplotlib-3.8.4/08_LICENSE_QHULL.txt",
+        "sha256": "106d55c931fd6a84822e5345d900273d059f1c27310d02567ccb313c5d18c55d"
+      },
+      {
+        "source": "matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_QT4_EDITOR",
+        "file": "依存ライブラリ/matplotlib-3.8.4/09_LICENSE_QT4_EDITOR.txt",
+        "sha256": "b2b50ca8b6172aca23095adf15db89d3727e9ef2d6ef0178e427234011bed3cd"
+      },
+      {
+        "source": "matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_SOLARIZED",
+        "file": "依存ライブラリ/matplotlib-3.8.4/10_LICENSE_SOLARIZED.txt",
+        "sha256": "12d5327fbc4df845a86883de99ed5fdf4198445d56dbacdf5fad8f0efdc97513"
+      },
+      {
+        "source": "matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_STIX",
+        "file": "依存ライブラリ/matplotlib-3.8.4/11_LICENSE_STIX.txt",
+        "sha256": "bab3d31dfef07f483624f2f65f2711e76065b8e7273278b1c071ede1041c9959"
+      },
+      {
+        "source": "matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_YORICK",
+        "file": "依存ライブラリ/matplotlib-3.8.4/12_LICENSE_YORICK.txt",
+        "sha256": "cab753d38c093651e8deb5abb684e3ed68020e0e418034f94d79e890dc7ae84d"
+      },
+      {
+        "source": "matplotlib/mpl-data/fonts/ttf/LICENSE_DEJAVU",
+        "file": "依存ライブラリ/matplotlib-3.8.4/13_LICENSE_DEJAVU.txt",
+        "sha256": "d75938dec098f06f0ac3c00853065d94f020be1c3c62ef1dc2975ba15b4d9b0e"
+      },
+      {
+        "source": "matplotlib/mpl-data/fonts/ttf/LICENSE_STIX",
+        "file": "依存ライブラリ/matplotlib-3.8.4/14_LICENSE_STIX.txt",
+        "sha256": "bab3d31dfef07f483624f2f65f2711e76065b8e7273278b1c071ede1041c9959"
+      }
+    ]
+  },
+  {
+    "component": "networkx-3.4.2",
+    "archive": "networkx-3.4.2-py3-none-any.whl",
+    "archive_sha256": "9ca60612e2407d3c9256f1e30ddea54cacc1a548dcb95cc5b4535d382e33a3f2",
+    "files": [
+      {
+        "source": "networkx-3.4.2.dist-info/LICENSE.txt",
+        "file": "依存ライブラリ/networkx-3.4.2/01_LICENSE.txt",
+        "sha256": "5b433b90f755eb9bbd06feff1d1a4f5f232c5208a185694199e45fa95d762792"
+      }
+    ]
+  },
+  {
+    "component": "numpy-2.2.5",
+    "archive": "numpy-2.2.5-cp313-cp313-pyodide_2025_0_wasm32.whl",
+    "archive_sha256": "3db3c4f3e0448f4d62a85c262692f1260ccd8a91335442bd2442f21ffeddb558",
+    "files": [
+      {
+        "source": "numpy-2.2.5.dist-info/LICENSE.txt",
+        "file": "依存ライブラリ/numpy-2.2.5/01_LICENSE.txt",
+        "sha256": "01fb016849aa427edb1bbbbd55f91c26ca6cadb32a5b20e7f000655dd05b0760"
+      },
+      {
+        "source": "numpy/_core/include/numpy/random/LICENSE.txt",
+        "file": "依存ライブラリ/numpy-2.2.5/02_LICENSE.txt",
+        "sha256": "fbc539f47d0cf83bc61378080fb873d5c14630126cacbfe754035c3926daa5ec"
+      },
+      {
+        "source": "numpy/ma/LICENSE",
+        "file": "依存ライブラリ/numpy-2.2.5/03_LICENSE.txt",
+        "sha256": "05f3b88351988ecfad10abe92c0c50e5875c6452d5009a0084cc291551ffcca6"
+      },
+      {
+        "source": "numpy/random/LICENSE.md",
+        "file": "依存ライブラリ/numpy-2.2.5/04_LICENSE.md",
+        "sha256": "103166b62b80443afb9eb3488e052ea06be0cff566b908f199e561fde49af19f"
+      }
+    ]
+  },
+  {
+    "component": "opencv_python-4.11.0.86",
+    "archive": "opencv_python-4.11.0.86-cp313-cp313-pyodide_2025_0_wasm32.whl",
+    "archive_sha256": "a92d8984ec1468e99894a24f714ed90980dd263acb8c232aa18cf9378a3fdeb8",
+    "files": [
+      {
+        "source": "cv2/LICENSE-3RD-PARTY.txt",
+        "file": "依存ライブラリ/opencv_python-4.11.0.86/01_LICENSE-3RD-PARTY.txt",
+        "sha256": "4fc3c113d53e95da0f3c433655a67067b7310e53af31eb6d280e94cc6927a363"
+      },
+      {
+        "source": "cv2/LICENSE.txt",
+        "file": "依存ライブラリ/opencv_python-4.11.0.86/02_LICENSE.txt",
+        "sha256": "09d719058e782ac7bc71ba21c944e1136cde2bb957c0e888121f0218d6b5f02c"
+      },
+      {
+        "source": "opencv_python-4.11.0.86.dist-info/LICENSE-3RD-PARTY.txt",
+        "file": "依存ライブラリ/opencv_python-4.11.0.86/03_LICENSE-3RD-PARTY.txt",
+        "sha256": "4fc3c113d53e95da0f3c433655a67067b7310e53af31eb6d280e94cc6927a363"
+      },
+      {
+        "source": "opencv_python-4.11.0.86.dist-info/LICENSE.txt",
+        "file": "依存ライブラリ/opencv_python-4.11.0.86/04_LICENSE.txt",
+        "sha256": "09d719058e782ac7bc71ba21c944e1136cde2bb957c0e888121f0218d6b5f02c"
+      }
+    ]
+  },
+  {
+    "component": "packaging-24.2",
+    "archive": "packaging-24.2-py3-none-any.whl",
+    "archive_sha256": "fdbc12e70e25c89b3e95a853f09065c629ebd6add9bf7a788ce6cfdb35b5c7b0",
+    "files": [
+      {
+        "source": "packaging-24.2.dist-info/licenses/LICENSE",
+        "file": "依存ライブラリ/packaging-24.2/01_LICENSE.txt",
+        "sha256": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48"
+      }
+    ]
+  },
+  {
+    "component": "pillow-11.3.0",
+    "archive": "pillow-11.3.0-cp313-cp313-pyodide_2025_0_wasm32.whl",
+    "archive_sha256": "52984112ca668d60291a7868011a04d66baf526d27e5eaef0a8a16e7ef22ab6c",
+    "files": [
+      {
+        "source": "pillow-11.3.0.dist-info/licenses/LICENSE",
+        "file": "依存ライブラリ/pillow-11.3.0/01_LICENSE.txt",
+        "sha256": "17f240ae101143707e5e7303a5d800450d9ccc7475b463cedb555cefdb3c6ece"
+      }
+    ]
+  },
+  {
+    "component": "pyparsing-3.2.1",
+    "archive": "pyparsing-3.2.1-py3-none-any.whl",
+    "archive_sha256": "7d595baa16a4640b541ef894a01f1724425bc5b6a07be5e55b1168d637ba7747",
+    "files": [
+      {
+        "source": "pyparsing-3.2.1.dist-info/LICENSE",
+        "file": "依存ライブラリ/pyparsing-3.2.1/01_LICENSE.txt",
+        "sha256": "10d5120a16805804ffda8b688c220bfb4e8f39741b57320604d455a309e01972"
+      }
+    ]
+  },
+  {
+    "component": "python_dateutil-2.9.0.post0",
+    "archive": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+    "archive_sha256": "26b50ce706a17abdde09dbb95745a44f9320dfdb99e950c52b1a62a3d99e452c",
+    "files": [
+      {
+        "source": "python_dateutil-2.9.0.post0.dist-info/LICENSE",
+        "file": "依存ライブラリ/python_dateutil-2.9.0.post0/01_LICENSE.txt",
+        "sha256": "ba00f51a0d92823b5a1cde27d8b5b9d2321e67ed8da9bc163eff96d5e17e577e"
+      }
+    ]
+  },
+  {
+    "component": "pytz-2025.2",
+    "archive": "pytz-2025.2-py2.py3-none-any.whl",
+    "archive_sha256": "1d7f409837318a3a234a6394253a77900072616a42e5dba89c3214f70e77f31b",
+    "files": [
+      {
+        "source": "pytz-2025.2.dist-info/LICENSE.txt",
+        "file": "依存ライブラリ/pytz-2025.2/01_LICENSE.txt",
+        "sha256": "be8b1a37ebe26c592a90f6c0eb33103a7f383ce2f4d7498c0af9a526990a07b8"
+      }
+    ]
+  },
+  {
+    "component": "pywavelets-1.8.0",
+    "archive": "pywavelets-1.8.0-cp313-cp313-pyodide_2025_0_wasm32.whl",
+    "archive_sha256": "72f04e0a26fcc60187230f1468f3f9513e8045d0ce1d6086b9d4db3c41dddbc5",
+    "files": [
+      {
+        "source": "pywavelets-1.8.0.dist-info/LICENSE",
+        "file": "依存ライブラリ/pywavelets-1.8.0/01_LICENSE.txt",
+        "sha256": "63fd203c1eab43cc6b6d8435ce3934fe875926f646143178af58adf7f3c9ae97"
+      }
+    ]
+  },
+  {
+    "component": "scikit_image-0.25.2",
+    "archive": "scikit_image-0.25.2-cp313-cp313-pyodide_2025_0_wasm32.whl",
+    "archive_sha256": "928166dc3308a25f688a32c30007f185ffdd6ba6e19985be80d400ff06df8e8a",
+    "files": [
+      {
+        "source": "scikit_image-0.25.2.dist-info/LICENSE.txt",
+        "file": "依存ライブラリ/scikit_image-0.25.2/01_LICENSE.txt",
+        "sha256": "611d3207504dcb4a808df209d2e7c9b4f2e89fe690f84735c0d548160966b527"
+      }
+    ]
+  },
+  {
+    "component": "scipy-1.14.1",
+    "archive": "scipy-1.14.1-cp313-cp313-pyodide_2025_0_wasm32.whl",
+    "archive_sha256": "6c4277bb1902f2064f5f4bd0ffbea67cf9aaf89a3fdc49e9ac1e078d9b574ef0",
+    "files": [
+      {
+        "source": "scipy-1.14.1.dist-info/LICENSE.txt",
+        "file": "依存ライブラリ/scipy-1.14.1/01_LICENSE.txt",
+        "sha256": "c29fb8e5936f33237a8b15256b4c6e93037f05bbf58c3d7b5755aede4c200173"
+      },
+      {
+        "source": "scipy/_lib/_uarray/LICENSE",
+        "file": "依存ライブラリ/scipy-1.14.1/02_LICENSE.txt",
+        "sha256": "c80c39b5fce06ba4897e14e0b0a88b54458334d951eb1361402ffad2cfb863b4"
+      },
+      {
+        "source": "scipy/fft/_pocketfft/LICENSE.md",
+        "file": "依存ライブラリ/scipy-1.14.1/03_LICENSE.md",
+        "sha256": "c254b2b5fd30ae3c89d36ba061730563b9760fca04f1b746a1b2c3157da2c789"
+      },
+      {
+        "source": "scipy/sparse/linalg/_eigen/arpack/COPYING",
+        "file": "依存ライブラリ/scipy-1.14.1/04_COPYING.txt",
+        "sha256": "0926566f9f406178d1214f8cc796e166b1213dd7c05e0c5b461a8b8ac9e50bbe"
+      },
+      {
+        "source": "scipy/spatial/qhull_src/COPYING.txt",
+        "file": "依存ライブラリ/scipy-1.14.1/05_COPYING.txt",
+        "sha256": "34db0c0c4f931861d720555c9cd7a2e228d1290ba29af0f2ee80c41bb2038afb"
+      }
+    ]
+  },
+  {
+    "component": "setuptools-76.0.0",
+    "archive": "setuptools-76.0.0-py3-none-any.whl",
+    "archive_sha256": "4394b38a7bc0fcf8e7c7fe1438d49781ebca9a54b14bc3c4de22d4acf5c08d83",
+    "files": [
+      {
+        "source": "setuptools-76.0.0.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/01_LICENSE.txt",
+        "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+      },
+      {
+        "source": "setuptools/_vendor/autocommand-2.2.2.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/02_LICENSE.txt",
+        "sha256": "ade78d04982d69972d444a8e14a94f87a2334dd3855cc80348ea8e240aa0df2d"
+      },
+      {
+        "source": "setuptools/_vendor/backports.tarfile-1.2.0.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/03_LICENSE.txt",
+        "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+      },
+      {
+        "source": "setuptools/_vendor/importlib_metadata-8.0.0.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/04_LICENSE.txt",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "source": "setuptools/_vendor/inflect-7.3.1.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/05_LICENSE.txt",
+        "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+      },
+      {
+        "source": "setuptools/_vendor/jaraco.collections-5.1.0.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/06_LICENSE.txt",
+        "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+      },
+      {
+        "source": "setuptools/_vendor/jaraco.context-5.3.0.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/07_LICENSE.txt",
+        "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+      },
+      {
+        "source": "setuptools/_vendor/jaraco.functools-4.0.1.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/08_LICENSE.txt",
+        "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+      },
+      {
+        "source": "setuptools/_vendor/jaraco.text-3.12.1.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/09_LICENSE.txt",
+        "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+      },
+      {
+        "source": "setuptools/_vendor/more_itertools-10.3.0.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/10_LICENSE.txt",
+        "sha256": "09f1c8c9e941af3e584d59641ea9b87d83c0cb0fd007eb5ef391a7e2643c1a46"
+      },
+      {
+        "source": "setuptools/_vendor/packaging-24.2.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/11_LICENSE.txt",
+        "sha256": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48"
+      },
+      {
+        "source": "setuptools/_vendor/platformdirs-4.2.2.dist-info/licenses/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/12_LICENSE.txt",
+        "sha256": "29e0fd62e929850e86eb28c3fdccf0cefdf4fa94879011cffb3d0d4bed6d4db6"
+      },
+      {
+        "source": "setuptools/_vendor/tomli-2.0.1.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/13_LICENSE.txt",
+        "sha256": "b80816b0d530b8accb4c2211783790984a6e3b61922c2b5ee92f3372ab2742fe"
+      },
+      {
+        "source": "setuptools/_vendor/typeguard-4.3.0.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/14_LICENSE.txt",
+        "sha256": "6163f7987dfb38d6bc320ce2b70b2f02b862bc41126516d552ef1cd43247e758"
+      },
+      {
+        "source": "setuptools/_vendor/typing_extensions-4.12.2.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/15_LICENSE.txt",
+        "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf"
+      },
+      {
+        "source": "setuptools/_vendor/wheel-0.43.0.dist-info/LICENSE.txt",
+        "file": "依存ライブラリ/setuptools-76.0.0/16_LICENSE.txt",
+        "sha256": "30c23618679108f3e8ea1d2a658c7ca417bdfc891c98ef1a89fa4ff0c9828654"
+      },
+      {
+        "source": "setuptools/_vendor/zipp-3.19.2.dist-info/LICENSE",
+        "file": "依存ライブラリ/setuptools-76.0.0/17_LICENSE.txt",
+        "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+      },
+      {
+        "source": "setuptools/config/NOTICE",
+        "file": "依存ライブラリ/setuptools-76.0.0/18_NOTICE.txt",
+        "sha256": "2dddf08818297a3b89d43d95ff659d8da85741108c9136dfa3a4d856c0623bd8"
+      },
+      {
+        "source": "setuptools/config/_validate_pyproject/NOTICE",
+        "file": "依存ライブラリ/setuptools-76.0.0/19_NOTICE.txt",
+        "sha256": "09c9bcea95ca086f8bc5bed174e40bc835b297d40fb5f86bbbb570fe0a5581a7"
+      }
+    ]
+  },
+  {
+    "component": "six-1.17.0",
+    "archive": "six-1.17.0-py2.py3-none-any.whl",
+    "archive_sha256": "618e0357f1724d937c20b75d691f0ba9e404de2701084e3c4f35995cfb879665",
+    "files": [
+      {
+        "source": "six-1.17.0.dist-info/LICENSE",
+        "file": "依存ライブラリ/six-1.17.0/01_LICENSE.txt",
+        "sha256": "4375ba20e2b9c6c4e7cad2940a628fd90e95cc3d50ee92aae755715d8ba1fbd0"
+      }
+    ]
+  }
+]

@@ -1,0 +1,106 @@
+{
+  "pyodide.js": {
+    "bytes": 17270,
+    "sha256": "6a95a0441ede36697a0849eef3a9d7716db5f407ce17f441aef949f49ea2a0fd"
+  },
+  "pyodide.asm.js": {
+    "bytes": 1072688,
+    "sha256": "1e93abd15303db5a04500cdaf6d8321c0739b40f4284c1f0ed27c77fd2b0ddba"
+  },
+  "pyodide.asm.wasm": {
+    "bytes": 8645622,
+    "sha256": "086600fc5d4f40a693f8096a00c2b2aeeafed5ec733b965e1dac3a98ab1fc64c"
+  },
+  "python_stdlib.zip": {
+    "bytes": 2416495,
+    "sha256": "da83b536518492627805307c7d39af0564c6685920d88fd2199f8d8fccfd1a18"
+  },
+  "contourpy-1.3.1-cp313-cp313-pyodide_2025_0_wasm32.whl": {
+    "bytes": 132421,
+    "sha256": "3fe3d224ef8129f7be7062cf44c26a38a6cb6a1f07e11e93f33ec502476a40e7"
+  },
+  "cycler-0.12.1-py3-none-any.whl": {
+    "bytes": 8321,
+    "sha256": "4c163eac65b7ced9007b4259575c045a172dd45d36de7e25ae97b2be67b4a7d1"
+  },
+  "decorator-5.2.1-py3-none-any.whl": {
+    "bytes": 9167,
+    "sha256": "9b4debac88fa5916547843f759357bc05a67551055b63259c6ffd7ef6048790f"
+  },
+  "fonttools-4.56.0-py3-none-any.whl": {
+    "bytes": 1089800,
+    "sha256": "862f1298792269b5882f145efc0b2683b5101d30152e43152f2a9ee90e55755a"
+  },
+  "imageio-2.37.0-py3-none-any.whl": {
+    "bytes": 315796,
+    "sha256": "fcbfda2703dd299c60145e9a08824101860712d142841ecf0e804ccc3ea41283"
+  },
+  "kiwisolver-1.4.8-cp313-cp313-pyodide_2025_0_wasm32.whl": {
+    "bytes": 36920,
+    "sha256": "01451f4a9f0dcd93ea6d9e2e577a793d4c9082fbf1f59cfb8ff3ba376f28d3e3"
+  },
+  "lazy_loader-0.4-py3-none-any.whl": {
+    "bytes": 8809,
+    "sha256": "de2de95d0b565602ebb021541ca4aee2ce13fe8c6368715cba30784fbf83f0f8"
+  },
+  "libopenblas-0.3.26.zip": {
+    "bytes": 1916561,
+    "sha256": "15c2c82b0fdfdde83a81190f35f5f4a0d15bf236a7e93944c433ae5ac6bf3ee5"
+  },
+  "matplotlib-3.8.4-cp313-cp313-pyodide_2025_0_wasm32.whl": {
+    "bytes": 6722016,
+    "sha256": "4082bc4a9f7ab494137014991fe8afe83218aaaeb6bb4dbd6fd2b40c464742e5"
+  },
+  "networkx-3.4.2-py3-none-any.whl": {
+    "bytes": 1028953,
+    "sha256": "9ca60612e2407d3c9256f1e30ddea54cacc1a548dcb95cc5b4535d382e33a3f2"
+  },
+  "numpy-2.2.5-cp313-cp313-pyodide_2025_0_wasm32.whl": {
+    "bytes": 3109648,
+    "sha256": "3db3c4f3e0448f4d62a85c262692f1260ccd8a91335442bd2442f21ffeddb558"
+  },
+  "opencv_python-4.11.0.86-cp313-cp313-pyodide_2025_0_wasm32.whl": {
+    "bytes": 11700243,
+    "sha256": "a92d8984ec1468e99894a24f714ed90980dd263acb8c232aa18cf9378a3fdeb8"
+  },
+  "packaging-24.2-py3-none-any.whl": {
+    "bytes": 71930,
+    "sha256": "fdbc12e70e25c89b3e95a853f09065c629ebd6add9bf7a788ce6cfdb35b5c7b0"
+  },
+  "pillow-11.3.0-cp313-cp313-pyodide_2025_0_wasm32.whl": {
+    "bytes": 1058399,
+    "sha256": "52984112ca668d60291a7868011a04d66baf526d27e5eaef0a8a16e7ef22ab6c"
+  },
+  "pyparsing-3.2.1-py3-none-any.whl": {
+    "bytes": 107717,
+    "sha256": "7d595baa16a4640b541ef894a01f1724425bc5b6a07be5e55b1168d637ba7747"
+  },
+  "python_dateutil-2.9.0.post0-py2.py3-none-any.whl": {
+    "bytes": 229892,
+    "sha256": "26b50ce706a17abdde09dbb95745a44f9320dfdb99e950c52b1a62a3d99e452c"
+  },
+  "pytz-2025.2-py2.py3-none-any.whl": {
+    "bytes": 509225,
+    "sha256": "1d7f409837318a3a234a6394253a77900072616a42e5dba89c3214f70e77f31b"
+  },
+  "pywavelets-1.8.0-cp313-cp313-pyodide_2025_0_wasm32.whl": {
+    "bytes": 983040,
+    "sha256": "72f04e0a26fcc60187230f1468f3f9513e8045d0ce1d6086b9d4db3c41dddbc5"
+  },
+  "scikit_image-0.25.2-cp313-cp313-pyodide_2025_0_wasm32.whl": {
+    "bytes": 10242224,
+    "sha256": "928166dc3308a25f688a32c30007f185ffdd6ba6e19985be80d400ff06df8e8a"
+  },
+  "scipy-1.14.1-cp313-cp313-pyodide_2025_0_wasm32.whl": {
+    "bytes": 13258838,
+    "sha256": "6c4277bb1902f2064f5f4bd0ffbea67cf9aaf89a3fdc49e9ac1e078d9b574ef0"
+  },
+  "setuptools-76.0.0-py3-none-any.whl": {
+    "bytes": 953457,
+    "sha256": "4394b38a7bc0fcf8e7c7fe1438d49781ebca9a54b14bc3c4de22d4acf5c08d83"
+  },
+  "six-1.17.0-py2.py3-none-any.whl": {
+    "bytes": 11050,
+    "sha256": "618e0357f1724d937c20b75d691f0ba9e404de2701084e3c4f35995cfb879665"
+  }
+}

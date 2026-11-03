@@ -1,0 +1,16 @@
+{
+  "parity_diagnostics.py": "225487ce748ce734d0b510814a57b6c6ef5252ca2f85225178a43ab2722e3ac8",
+  "contour_compat.py": "47418767bcc730ce9dba28bf5d0239594d6f821767e05472bcf451d319a8e380",
+  "rotation_compat.py": "93e5c53e4ea840bba292534f60b4882180c18c4911cb5bc93d25e8b94627e75e",
+  "document_bridge.py": "c32871266d174cdd3de61f6264b98d251a804f65f0343956fe97ce613fc048bd",
+  "sketch2vec/__init__.py": "4f54017d24a11d6852c959b36fb960bfd02652b90b3927ba216914da85c7da44",
+  "sketch2vec/params.py": "481115988c68bb9e935ba1c13e1c880757ee163d892c4dc558a3828047302f6f",
+  "sketch2vec/pipeline.py": "1f02e18e5225cd120eb93938b9553fd799d75f624eaeb35b918efe009fa27f20",
+  "sketch2vec/preprocess.py": "4f3834b3e1425cfbd9ed4db67dbb72d4da8a78a9d73864a84611eeb4969db771",
+  "sketch2vec/fitting.py": "37d1e5b2cfb7bf3ef33648e842465a32174a61789a56ff1c98df3a7933eaec1a",
+  "sketch2vec/primitives.py": "b95e62289c7ca0b58274004f1a23386948d9ed9cf103cc6af030a1f1c1597684",
+  "sketch2vec/regularize.py": "c1f2b8922ffcce71192329f6a886dbd311648d8780b7c253e96727f9e14f1a4f",
+  "sketch2vec/skeleton.py": "1618f70f5a46a0445aab3989dd3ea3241f889a821dc1b61b283f5aeeed1db2fa",
+  "sketch2vec/text_regions.py": "56cfca287b4660fe48a1053141a6f72d2a2b6cdd2346efeee5ec89a901d577d1",
+  "sketch2vec/editing.py": "8802895948eeae79ca524109f56b6708ac8354884dda324153fcd8b84f8342bf"
+}

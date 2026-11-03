@@ -1,0 +1,161 @@
+Draft to DXF — 第三者コンポーネントのライセンス表示
+
+各ライセンスの本文は、配布物または記載のバージョンの公式ソースから変更せず収録しています。
+この一覧は第三者コンポーネントの著作権・ライセンス表示です。
+
+ランタイムのソース：
+Pyodide: https://github.com/pyodide/pyodide/tree/0.28.1
+Pyodide package recipes: https://github.com/pyodide/pyodide/tree/0.28.1/packages
+CPython: https://github.com/python/cpython/tree/v3.13.2
+Emscripten: https://github.com/emscripten-core/emscripten/tree/4.0.9
+OpenBLAS: https://github.com/OpenMathLib/OpenBLAS/tree/v0.3.26
+
+Pyodide 0.28.1
+  Pyodide-0.28.1-LICENSE.txt
+  https://raw.githubusercontent.com/pyodide/pyodide/0.28.1/LICENSE
+
+CPython 3.13.2
+  CPython-3.13.2-LICENSE.txt
+  https://raw.githubusercontent.com/python/cpython/v3.13.2/LICENSE
+
+CPython 3.13.2 third-party notices
+  CPython-3.13.2-THIRD-PARTY.txt
+  https://raw.githubusercontent.com/python/cpython/v3.13.2/Doc/license.rst
+
+Emscripten 4.0.9
+  Emscripten-4.0.9-LICENSE.txt
+  https://raw.githubusercontent.com/emscripten-core/emscripten/4.0.9/LICENSE
+
+OpenBLAS 0.3.26
+  OpenBLAS-0.3.26-LICENSE.txt
+  https://raw.githubusercontent.com/OpenMathLib/OpenBLAS/v0.3.26/LICENSE
+
+contourpy-1.3.1
+  配布アーカイブ: contourpy-1.3.1-cp313-cp313-pyodide_2025_0_wasm32.whl
+  依存ライブラリ/contourpy-1.3.1/01_LICENSE.txt ← contourpy-1.3.1.dist-info/LICENSE
+
+cycler-0.12.1
+  配布アーカイブ: cycler-0.12.1-py3-none-any.whl
+  依存ライブラリ/cycler-0.12.1/01_LICENSE.txt ← cycler-0.12.1.dist-info/LICENSE
+
+decorator-5.2.1
+  配布アーカイブ: decorator-5.2.1-py3-none-any.whl
+  依存ライブラリ/decorator-5.2.1/01_LICENSE.txt ← decorator-5.2.1.dist-info/LICENSE.txt
+
+fonttools-4.56.0
+  配布アーカイブ: fonttools-4.56.0-py3-none-any.whl
+  依存ライブラリ/fonttools-4.56.0/01_LICENSE.txt ← fonttools-4.56.0.dist-info/LICENSE
+
+imageio-2.37.0
+  配布アーカイブ: imageio-2.37.0-py3-none-any.whl
+  依存ライブラリ/imageio-2.37.0/01_LICENSE.txt ← imageio-2.37.0.dist-info/LICENSE
+
+kiwisolver-1.4.8
+  配布アーカイブ: kiwisolver-1.4.8-cp313-cp313-pyodide_2025_0_wasm32.whl
+  依存ライブラリ/kiwisolver-1.4.8/01_LICENSE.txt ← kiwisolver-1.4.8.dist-info/licenses/LICENSE
+
+lazy_loader-0.4
+  配布アーカイブ: lazy_loader-0.4-py3-none-any.whl
+  依存ライブラリ/lazy_loader-0.4/01_LICENSE.md ← lazy_loader-0.4.dist-info/LICENSE.md
+
+matplotlib-3.8.4
+  配布アーカイブ: matplotlib-3.8.4-cp313-cp313-pyodide_2025_0_wasm32.whl
+  依存ライブラリ/matplotlib-3.8.4/01_LICENSE.txt ← matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE
+  依存ライブラリ/matplotlib-3.8.4/02_LICENSE_AMSFONTS.txt ← matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_AMSFONTS
+  依存ライブラリ/matplotlib-3.8.4/03_LICENSE_BAKOMA.txt ← matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_BAKOMA
+  依存ライブラリ/matplotlib-3.8.4/04_LICENSE_CARLOGO.txt ← matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_CARLOGO
+  依存ライブラリ/matplotlib-3.8.4/05_LICENSE_COLORBREWER.txt ← matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_COLORBREWER
+  依存ライブラリ/matplotlib-3.8.4/06_LICENSE_COURIERTEN.txt ← matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_COURIERTEN
+  依存ライブラリ/matplotlib-3.8.4/07_LICENSE_JSXTOOLS_RESIZE_OBSERVER.txt ← matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_JSXTOOLS_RESIZE_OBSERVER
+  依存ライブラリ/matplotlib-3.8.4/08_LICENSE_QHULL.txt ← matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_QHULL
+  依存ライブラリ/matplotlib-3.8.4/09_LICENSE_QT4_EDITOR.txt ← matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_QT4_EDITOR
+  依存ライブラリ/matplotlib-3.8.4/10_LICENSE_SOLARIZED.txt ← matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_SOLARIZED
+  依存ライブラリ/matplotlib-3.8.4/11_LICENSE_STIX.txt ← matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_STIX
+  依存ライブラリ/matplotlib-3.8.4/12_LICENSE_YORICK.txt ← matplotlib-3.8.4.dist-info/licenses/LICENSE/LICENSE_YORICK
+  依存ライブラリ/matplotlib-3.8.4/13_LICENSE_DEJAVU.txt ← matplotlib/mpl-data/fonts/ttf/LICENSE_DEJAVU
+  依存ライブラリ/matplotlib-3.8.4/14_LICENSE_STIX.txt ← matplotlib/mpl-data/fonts/ttf/LICENSE_STIX
+
+networkx-3.4.2
+  配布アーカイブ: networkx-3.4.2-py3-none-any.whl
+  依存ライブラリ/networkx-3.4.2/01_LICENSE.txt ← networkx-3.4.2.dist-info/LICENSE.txt
+
+numpy-2.2.5
+  配布アーカイブ: numpy-2.2.5-cp313-cp313-pyodide_2025_0_wasm32.whl
+  依存ライブラリ/numpy-2.2.5/01_LICENSE.txt ← numpy-2.2.5.dist-info/LICENSE.txt
+  依存ライブラリ/numpy-2.2.5/02_LICENSE.txt ← numpy/_core/include/numpy/random/LICENSE.txt
+  依存ライブラリ/numpy-2.2.5/03_LICENSE.txt ← numpy/ma/LICENSE
+  依存ライブラリ/numpy-2.2.5/04_LICENSE.md ← numpy/random/LICENSE.md
+
+opencv_python-4.11.0.86
+  配布アーカイブ: opencv_python-4.11.0.86-cp313-cp313-pyodide_2025_0_wasm32.whl
+  依存ライブラリ/opencv_python-4.11.0.86/01_LICENSE-3RD-PARTY.txt ← cv2/LICENSE-3RD-PARTY.txt
+  依存ライブラリ/opencv_python-4.11.0.86/02_LICENSE.txt ← cv2/LICENSE.txt
+  依存ライブラリ/opencv_python-4.11.0.86/03_LICENSE-3RD-PARTY.txt ← opencv_python-4.11.0.86.dist-info/LICENSE-3RD-PARTY.txt
+  依存ライブラリ/opencv_python-4.11.0.86/04_LICENSE.txt ← opencv_python-4.11.0.86.dist-info/LICENSE.txt
+
+packaging-24.2
+  配布アーカイブ: packaging-24.2-py3-none-any.whl
+  依存ライブラリ/packaging-24.2/01_LICENSE.txt ← packaging-24.2.dist-info/licenses/LICENSE
+
+pillow-11.3.0
+  配布アーカイブ: pillow-11.3.0-cp313-cp313-pyodide_2025_0_wasm32.whl
+  依存ライブラリ/pillow-11.3.0/01_LICENSE.txt ← pillow-11.3.0.dist-info/licenses/LICENSE
+
+pyparsing-3.2.1
+  配布アーカイブ: pyparsing-3.2.1-py3-none-any.whl
+  依存ライブラリ/pyparsing-3.2.1/01_LICENSE.txt ← pyparsing-3.2.1.dist-info/LICENSE
+
+python_dateutil-2.9.0.post0
+  配布アーカイブ: python_dateutil-2.9.0.post0-py2.py3-none-any.whl
+  依存ライブラリ/python_dateutil-2.9.0.post0/01_LICENSE.txt ← python_dateutil-2.9.0.post0.dist-info/LICENSE
+
+pytz-2025.2
+  配布アーカイブ: pytz-2025.2-py2.py3-none-any.whl
+  依存ライブラリ/pytz-2025.2/01_LICENSE.txt ← pytz-2025.2.dist-info/LICENSE.txt
+
+pywavelets-1.8.0
+  配布アーカイブ: pywavelets-1.8.0-cp313-cp313-pyodide_2025_0_wasm32.whl
+  依存ライブラリ/pywavelets-1.8.0/01_LICENSE.txt ← pywavelets-1.8.0.dist-info/LICENSE
+
+scikit_image-0.25.2
+  配布アーカイブ: scikit_image-0.25.2-cp313-cp313-pyodide_2025_0_wasm32.whl
+  依存ライブラリ/scikit_image-0.25.2/01_LICENSE.txt ← scikit_image-0.25.2.dist-info/LICENSE.txt
+
+scipy-1.14.1
+  配布アーカイブ: scipy-1.14.1-cp313-cp313-pyodide_2025_0_wasm32.whl
+  依存ライブラリ/scipy-1.14.1/01_LICENSE.txt ← scipy-1.14.1.dist-info/LICENSE.txt
+  依存ライブラリ/scipy-1.14.1/02_LICENSE.txt ← scipy/_lib/_uarray/LICENSE
+  依存ライブラリ/scipy-1.14.1/03_LICENSE.md ← scipy/fft/_pocketfft/LICENSE.md
+  依存ライブラリ/scipy-1.14.1/04_COPYING.txt ← scipy/sparse/linalg/_eigen/arpack/COPYING
+  依存ライブラリ/scipy-1.14.1/05_COPYING.txt ← scipy/spatial/qhull_src/COPYING.txt
+
+setuptools-76.0.0
+  配布アーカイブ: setuptools-76.0.0-py3-none-any.whl
+  依存ライブラリ/setuptools-76.0.0/01_LICENSE.txt ← setuptools-76.0.0.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/02_LICENSE.txt ← setuptools/_vendor/autocommand-2.2.2.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/03_LICENSE.txt ← setuptools/_vendor/backports.tarfile-1.2.0.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/04_LICENSE.txt ← setuptools/_vendor/importlib_metadata-8.0.0.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/05_LICENSE.txt ← setuptools/_vendor/inflect-7.3.1.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/06_LICENSE.txt ← setuptools/_vendor/jaraco.collections-5.1.0.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/07_LICENSE.txt ← setuptools/_vendor/jaraco.context-5.3.0.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/08_LICENSE.txt ← setuptools/_vendor/jaraco.functools-4.0.1.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/09_LICENSE.txt ← setuptools/_vendor/jaraco.text-3.12.1.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/10_LICENSE.txt ← setuptools/_vendor/more_itertools-10.3.0.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/11_LICENSE.txt ← setuptools/_vendor/packaging-24.2.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/12_LICENSE.txt ← setuptools/_vendor/platformdirs-4.2.2.dist-info/licenses/LICENSE
+  依存ライブラリ/setuptools-76.0.0/13_LICENSE.txt ← setuptools/_vendor/tomli-2.0.1.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/14_LICENSE.txt ← setuptools/_vendor/typeguard-4.3.0.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/15_LICENSE.txt ← setuptools/_vendor/typing_extensions-4.12.2.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/16_LICENSE.txt ← setuptools/_vendor/wheel-0.43.0.dist-info/LICENSE.txt
+  依存ライブラリ/setuptools-76.0.0/17_LICENSE.txt ← setuptools/_vendor/zipp-3.19.2.dist-info/LICENSE
+  依存ライブラリ/setuptools-76.0.0/18_NOTICE.txt ← setuptools/config/NOTICE
+  依存ライブラリ/setuptools-76.0.0/19_NOTICE.txt ← setuptools/config/_validate_pyproject/NOTICE
+
+six-1.17.0
+  配布アーカイブ: six-1.17.0-py2.py3-none-any.whl
+  依存ライブラリ/six-1.17.0/01_LICENSE.txt ← six-1.17.0.dist-info/LICENSE
+
+PDF.js 5.7.284: PDFJS-LICENSE.txt
+UTIF 3.1.0: UTIF-LICENSE.txt
+pako 1.0.11: PAKO-LICENSE.txt
+OpenCV compatibility implementation notice: OPENCV-COMPAT-NOTICE.txt
