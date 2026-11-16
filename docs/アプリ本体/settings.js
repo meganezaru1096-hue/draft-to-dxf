@@ -13,7 +13,7 @@
     ['saveProject','編集データ保存','Ctrl+S','saveProject'],['undo','元に戻す','Ctrl+Z','undo'],['redo','やり直す','Ctrl+Y','redo'],
     ['selectAll','対象を全選択','Ctrl+A','selectAll'],['delete','選択を削除','D','quick-delete'],
     ['horizontal','水平にする','','quick-horizontal'],['vertical','垂直にする','','quick-vertical'],
-    ['merge','直線を統合','','quick-merge'],['align','同一直線に整列','','align'],['mergeArcs','円・円弧統合','','quick-mergeArcs'],
+    ['merge','直線を統合','','quick-merge'],['align','同一直線に整列','','align'],['mergeArcs','円・円弧統合','','quick-mergeArcs'],['mergeEllipse','楕円統合','','quick-mergeEllipse'],
     ['corner','角を作る','','quick-corner'],['linearize','円弧を直線化','','quick-linearize'],
     ['rotateCCW','図面を左90°','','rotateCCW'],['rotateCW','図面を右90°','','rotateCW'],
     ['exportDxf','DXF保存','','exportDxf'],['exportPdf','PDF保存','','exportPdf']
@@ -31,7 +31,7 @@
   const defaultKeys=Object.fromEntries(actions.map(([id,,key])=>[id,key]));
   const storageKey='draft-to-dxf-settings-v1';let keys={...defaultKeys},values={...defaults},storageError='',restoredRecord=null,savedAt=0,revision=0,applying=false;
   const validKey=key=>typeof key==='string'&&(key===''||/^(Ctrl\+)?(Shift\+)?([A-Z0-9]|Delete|F[2-4]|F[6-9]|F10)$/.test(key))&&!/^Ctrl\+(Shift\+)?([WTNRLOPQ]|F4|F6)$/.test(key)&&key!=='Ctrl+Shift+Delete';
-  function completeKeys(raw,migrate=false){if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;const next={};for(const [id] of actions){const value=['extend','copySelected','offsetSelected','trimTo'].includes(id)&&!Object.hasOwn(raw,id)?'':raw[id];if(!validKey(value))return null;next[id]=value;}const bound=Object.values(next).filter(Boolean);if(new Set(bound).size!==bound.length)return null;if(migrate&&next.delete==='Delete'&&!Object.entries(next).some(([id,key])=>id!=='delete'&&key==='D'))next.delete='D';return next;}
+  function completeKeys(raw,migrate=false){if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;const next={};for(const [id] of actions){const value=['extend','copySelected','offsetSelected','trimTo','mergeEllipse'].includes(id)&&!Object.hasOwn(raw,id)?'':raw[id];if(!validKey(value))return null;next[id]=value;}const bound=Object.values(next).filter(Boolean);if(new Set(bound).size!==bound.length)return null;if(migrate&&next.delete==='Delete'&&!Object.entries(next).some(([id,key])=>id!=='delete'&&key==='D'))next.delete='D';return next;}
   function validValue(id,value){const n=$(id);if(!n)return false;if(n.tagName==='SELECT')return typeof value==='string'&&[...n.options].some(o=>o.value===value);return n.type==='checkbox'?typeof value==='boolean':typeof value==='string'&&value.trim()!==''&&Number.isFinite(Number(value))&&(!n.min||Number(value)>=Number(n.min))&&(!n.max||Number(value)<=Number(n.max));}
   const isRecord=data=>data?.version===1&&data.values&&typeof data.values==='object'&&!Array.isArray(data.values);
   const timestamp=data=>Number.isSafeInteger(data?.savedAt)&&data.savedAt>=0?Math.min(data.savedAt,Date.now()+86400000):0;

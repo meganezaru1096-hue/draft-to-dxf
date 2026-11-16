@@ -36,7 +36,7 @@ window.DraftEndpoint={
     const extent=dir*d.arcSweep,fixedAngle=s.start_deg+(d.endpoint===0?s.extent_deg:0),segment={...s,start_deg:d.endpoint===0?fixedAngle-extent:fixedAngle,extent_deg:extent};
     return {point:DraftGeometry.point(segment,d.endpoint),segment,arc_extent:extent,valid:d.arcSweep*s.radius*Math.PI/180>=1e-6,kind:`円弧 ${d.arcSweep.toFixed(1)}°（中心・半径固定）${d.arcSweep===360?'：一周の円':''}`};
   },
-  find(e,p){let best=10/e.view.scale,found=null;e.doc.paths.forEach((path,pi)=>{if(!e.visible(path))return;path.segments.forEach((s,si)=>{if((s.type==='arc'&&Math.abs(s.extent_deg)>=359.999999)||(e.endpointScope&&e.endpointScope!==`${pi}:${si}`))return;[DraftGeometry.point(s,0),DraftGeometry.point(s,1)].forEach((q,endpoint)=>{const dist=Math.hypot(q[0]-p[0],q[1]-p[1]);if(dist<best){best=dist;found={ref:[pi,si],endpoint,segment:s};}});});});return found;},
+  find(e,p){let best=10/e.view.scale,found=null;e.doc.paths.forEach((path,pi)=>{if(!e.visible(path))return;path.segments.forEach((s,si)=>{if(DraftGeometry.closed(s)||(e.endpointScope&&e.endpointScope!==`${pi}:${si}`))return;[DraftGeometry.point(s,0),DraftGeometry.point(s,1)].forEach((q,endpoint)=>{const dist=Math.hypot(q[0]-p[0],q[1]-p[1]);if(dist<best){best=dist;found={ref:[pi,si],endpoint,segment:s};}});});});return found;},
   pick(e,p){
     if(!e.endpointDraft){
       const found=this.find(e,p);

@@ -42,10 +42,14 @@ window.DraftEditor = class {
     document.getElementById('savedState').textContent=this.doc?(this.dirty?'未保存':this.saveRequested?'保存先を確認':'変更なし'):'';
     const count=this.doc?this.doc.paths.reduce((sum,p)=>sum+p.segments.length,0):0;
     document.getElementById('elementCount').textContent=this.comparing?`修正前 ${this.baseline.reduce((n,p)=>n+p.segments.length,0)} ／ 編集後 ${count} 要素`:`全 ${count} 要素`;
-    for(const id of ['delete','merge','align','horizontal','vertical'])document.getElementById(id).disabled=this.busy || !this.selected.size;
-    document.getElementById('linearize').disabled=this.busy||![...this.selected].some(key=>{const [p,s]=key.split(':').map(Number);return this.doc.paths[p].segments[s].type==='arc';});
-    document.getElementById('corner').disabled=this.busy||this.selected.size!==2;
-    document.getElementById('mergeArcs').disabled=this.busy||this.selected.size<2;
+    const types=[...this.selected].map(key=>{const [p,s]=key.split(':').map(Number);return this.doc?.paths[p]?.segments[s]?.type;});
+    const noSelection=this.busy||!types.length,hasEllipse=types.includes('ellipse'),onlyLines=types.every(t=>t==='line');
+    document.getElementById('delete').disabled=noSelection;
+    for(const id of ['merge','align'])document.getElementById(id).disabled=noSelection||hasEllipse;
+    for(const id of ['horizontal','vertical','corner'])document.getElementById(id).disabled=noSelection||!onlyLines||(id==='corner'&&types.length!==2);
+    document.getElementById('linearize').disabled=this.busy||hasEllipse||!types.includes('arc');
+    document.getElementById('mergeArcs').disabled=this.busy||hasEllipse||types.length<2;
+    document.getElementById('mergeEllipse').disabled=this.busy||hasEllipse||types.length<(onlyLines?5:3);
     document.getElementById('undo').disabled=this.busy||!this.undo;document.getElementById('redo').disabled=this.busy||!this.redo;
     for(const id of ['saveProject','exportPdf','exportDxf'])document.getElementById(id).disabled=this.busy||!this.doc;
     for(const id of ['rotateCW','rotateCCW'])document.getElementById(id).disabled=this.busy||!this.doc;
@@ -83,7 +87,7 @@ window.DraftEditor = class {
     for(let pi=0;pi<displayed.length;pi++){const p=displayed[pi];if(!this.visible(p))continue;
       for(let si=0;si<p.segments.length;si++){const s=p.segments[si],selected=this.selected.has(`${pi}:${si}`);c.strokeStyle=selected?'#0057d9':'#d100b4';c.lineWidth=(selected?2.5:1)/v.scale;c.beginPath();
         if(selected&&moving){c.save();c.translate(...moving);}
-        if(s.type==='line'){c.moveTo(...s.p0);c.lineTo(...s.p1);}else c.arc(...s.center,s.radius,s.start_deg*Math.PI/180,(s.start_deg+s.extent_deg)*Math.PI/180,s.extent_deg<0);c.stroke();if(selected&&moving)c.restore();
+        DraftGeometry.trace(c,s);c.stroke();if(selected&&moving)c.restore();
       }
     }
     c.restore();if(!this.comparing){DraftMeasure.draw(this,c);
@@ -100,8 +104,8 @@ window.DraftEditor = class {
   }
   arcPoint(s,angle){const a=angle*Math.PI/180;return [s.center[0]+s.radius*Math.cos(a),s.center[1]+s.radius*Math.sin(a)];}
   inArc(s,angle){return Math.abs(s.extent_deg)>=359.999999 || ((s.extent_deg>=0?angle-s.start_deg:s.start_deg-angle)%360+360)%360 <=Math.abs(s.extent_deg)+1e-8;}
-  bounds(s){const pts=s.type==='line'?[s.p0,s.p1]:[this.arcPoint(s,s.start_deg),this.arcPoint(s,s.start_deg+s.extent_deg),...[0,90,180,270].filter(a=>this.inArc(s,a)).map(a=>this.arcPoint(s,a))];return [Math.min(...pts.map(p=>p[0])),Math.min(...pts.map(p=>p[1])),Math.max(...pts.map(p=>p[0])),Math.max(...pts.map(p=>p[1]))];}
-  distance(s,p){if(s.type==='line'){const dx=s.p1[0]-s.p0[0],dy=s.p1[1]-s.p0[1],t=Math.max(0,Math.min(1,((p[0]-s.p0[0])*dx+(p[1]-s.p0[1])*dy)/(dx*dx+dy*dy||1)));return Math.hypot(p[0]-s.p0[0]-t*dx,p[1]-s.p0[1]-t*dy);}const a=Math.atan2(p[1]-s.center[1],p[0]-s.center[0])*180/Math.PI;if(this.inArc(s,a))return Math.abs(Math.hypot(p[0]-s.center[0],p[1]-s.center[1])-s.radius);return Math.min(...[s.start_deg,s.start_deg+s.extent_deg].map(a=>{const q=this.arcPoint(s,a);return Math.hypot(p[0]-q[0],p[1]-q[1]);}));}
+  bounds(s){return DraftGeometry.bounds(s);}
+  distance(s,p){if(s.type==='ellipse')return DraftGeometry.nearestEllipse(s,p).distance;if(s.type==='line'){const dx=s.p1[0]-s.p0[0],dy=s.p1[1]-s.p0[1],t=Math.max(0,Math.min(1,((p[0]-s.p0[0])*dx+(p[1]-s.p0[1])*dy)/(dx*dx+dy*dy||1)));return Math.hypot(p[0]-s.p0[0]-t*dx,p[1]-s.p0[1]-t*dy);}const a=Math.atan2(p[1]-s.center[1],p[0]-s.center[0])*180/Math.PI;if(this.inArc(s,a))return Math.abs(Math.hypot(p[0]-s.center[0],p[1]-s.center[1])-s.radius);return Math.min(...[s.start_deg,s.start_deg+s.extent_deg].map(a=>{const q=this.arcPoint(s,a);return Math.hypot(p[0]-q[0],p[1]-q[1]);}));}
   selectedAt(point){
     if(!this.doc||this.mode!=='select'||this.busy)return false;
     for(const key of this.selected){const [pi,si]=key.split(':').map(Number),p=this.doc.paths[pi],s=p?.segments[si];if(s&&this.visible(p)&&DraftGeometry.allowed(p,s)&&this.distance(s,point)<7/this.view.scale)return true;}
@@ -131,7 +135,7 @@ window.DraftEditor = class {
     if(cycle&&hits.length){hits.sort((a,b)=>a.d-b.d);const last=this.cyclePick&&Math.hypot(b[0]-this.cyclePick.point[0],b[1]-this.cyclePick.point[1])<2/this.view.scale?this.cyclePick.key:null,index=hits.findIndex(h=>last?h.key===last:prior.includes(h.key));best=hits[(index+1)%hits.length].key;this.cyclePick={point:b,key:best};}else this.cyclePick=null;
     if(best){if(add&&this.selected.has(best)){this.selected.delete(best);this.anchors.delete(best);}else{this.selected.add(best);this.anchors.set(best,b);}}this.update();this.draw();
   }
-  edit(action){if(this.busy||!this.doc)return;if(['undo','redo'].includes(action)&&window.DraftHistory){DraftHistory.step(this,action==='undo'?-1:1);return;} if(!['undo','redo','rotateCW','rotateCCW'].includes(action)&&!this.selected.size)return;
+  edit(action){if(this.busy||!this.doc||document.getElementById(action)?.disabled)return;if(['undo','redo'].includes(action)&&window.DraftHistory){DraftHistory.step(this,action==='undo'?-1:1);return;} if(!['undo','redo','rotateCW','rotateCCW'].includes(action)&&!this.selected.size)return;
     const tolerance=action==='mergeArcs'?null:Number(document.getElementById('tolerance').value);
     if(['merge','align'].includes(action)&&(!Number.isFinite(tolerance)||tolerance<=0)){window.alert('許容ずれには正の数値を指定してください。');return;}
     try{this.pendingRotationMeta=DraftRotation.prepare(this,action);}catch(error){document.getElementById('status').textContent=error.message;return;}

@@ -4,7 +4,7 @@ PDF・JPEG・PNG・TIFFの図面を線・円・円弧に変換し、修正して
 
 ## ブラウザで使う
 
-**[Draft to DXF を開く](https://meganezaru1096-hue.github.io/draft-to-dxf/?v=20261103)**
+**[Draft to DXF を開く](https://meganezaru1096-hue.github.io/draft-to-dxf/?v=20261116)**
 
 URLを開くだけで使用できます。ZIPのダウンロード・展開・追加インストールは不要です。初回は処理エンジンの読み込みに時間がかかります。
 図面はサーバーへ送信せず、ブラウザ内で処理します。完成したPDF・DXFは保存ボタンから保存できます。
@@ -12,7 +12,7 @@ URLを開くだけで使用できます。ZIPのダウンロード・展開・�
 
 ## ZIP版のダウンロード
 
-**[Draft to DXF をダウンロード（ZIP）](https://github.com/meganezaru1096-hue/draft-to-dxf/releases/download/v2026.11.03/Draft_to_DXF_2026-11-03.zip)**
+**[Draft to DXF をダウンロード（ZIP）](https://github.com/meganezaru1096-hue/draft-to-dxf/releases/download/v2026.11.16/Draft_to_DXF_2026-11-16.zip)**
 
 [リリース一覧](https://github.com/meganezaru1096-hue/draft-to-dxf/releases)
 

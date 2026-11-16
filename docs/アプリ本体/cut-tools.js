@@ -28,8 +28,8 @@ window.DraftCut={
     document.getElementById('circleTrimSide').disabled=e.busy||e.mode!=='trimLine';
     document.getElementById('cutHint').textContent=!this.active(e)?'分割は形を変えずに別々の要素へ。区間削除は2点間を消します。直線・円弧・円に対応。':!e.cutDraft?(e.mode==='splitLine'?(e.selected.size>=2?'分割済み：丸印が切れ目です。「選択」に戻り、片側をクリックして移動・削除できます。':'①分けたい位置をクリック。円は円周上の2か所を指定。形は変わりません。'):'①消したい区間の端をクリック → ②反対側の端をクリック。赤い部分を削除。'):e.mode==='splitLine'?'②同じ円周の別の位置をクリックすると2本の円弧に分割します（Escで中止）':'②同じ線・円弧・円上の反対側の端をクリック。円は短い側／長い側を選択できます（Escで中止）';
   },
-  point(s,t){if(s.type==='arc'){const a=(s.start_deg+t*s.extent_deg)*Math.PI/180;return [s.center[0]+s.radius*Math.cos(a),s.center[1]+s.radius*Math.sin(a)];}return [s.p0[0]+t*(s.p1[0]-s.p0[0]),s.p0[1]+t*(s.p1[1]-s.p0[1])];},
-  stroke(c,s,a,b){c.beginPath();if(s.type==='arc')c.arc(...s.center,s.radius,(s.start_deg+a*s.extent_deg)*Math.PI/180,(s.start_deg+b*s.extent_deg)*Math.PI/180,s.extent_deg<0);else{c.moveTo(...this.point(s,a));c.lineTo(...this.point(s,b));}c.stroke();},
+  point(s,t){return DraftGeometry.point(s,t);},
+  stroke(c,s,a,b){c.beginPath();DraftGeometry.trace(c,s,a,b);c.stroke();},
   position(e,d,p){
     if(document.getElementById('cutSnap').checked){
       let nearest=null,best=10/e.view.scale;
@@ -51,7 +51,7 @@ window.DraftCut={
     const project=q=>Math.max(0,Math.min(1,((q[0]-s.p0[0])*u[0]+(q[1]-s.p0[1])*u[1])/length2));
     return project(p);
   },
-  find(e,p){let best=10/e.view.scale,found=null;e.doc.paths.forEach((path,pi)=>{if(!e.visible(path))return;path.segments.forEach((s,si)=>{if((e.cutScope&&e.cutScope!==`${pi}:${si}`)||DraftGeometry.length(s)<1e-6)return;const dist=e.distance(s,p);if(dist<best){best=dist;found={ref:[pi,si],segment:s};}});});return found;},
+  find(e,p){let best=10/e.view.scale,found=null;e.doc.paths.forEach((path,pi)=>{if(!e.visible(path))return;path.segments.forEach((s,si)=>{if(s.type==='ellipse'||(e.cutScope&&e.cutScope!==`${pi}:${si}`)||DraftGeometry.length(s)<1e-6)return;const dist=e.distance(s,p);if(dist<best){best=dist;found={ref:[pi,si],segment:s};}});});return found;},
   pick(e,p){
     let d=e.cutDraft;
     if(!d){d=this.find(e,p);

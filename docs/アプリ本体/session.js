@@ -10,7 +10,8 @@
     for(const paths of [p.paths,p.baselinePaths].filter(x=>x!==undefined)){
       if(!Array.isArray(paths)||paths.length>200000)throw Error('線データが不正です。');let count=0;
       const num=v=>typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)<=1e7,point=v=>Array.isArray(v)&&v.length===2&&v.every(num);
-      for(const path of paths){if(!path||!Array.isArray(path.segments))throw Error('線データが不正です。');for(const k of ['closed'])if(path[k]!==undefined&&typeof path[k]!=='boolean')throw Error('線の属性が不正です。');for(const s of path.segments){if(++count>200000||!(s.type==='line'?point(s.p0)&&point(s.p1):s.type==='arc'&&point(s.center)&&num(s.radius)&&s.radius>0&&num(s.start_deg)&&num(s.extent_deg)&&Math.abs(s.extent_deg)>0&&Math.abs(s.extent_deg)<=360.001))throw Error('線の座標が不正です。');}}
+      const valid=s=>s?.type==='line'?point(s.p0)&&point(s.p1):s?.type==='ellipse'?point(s.center)&&num(s.rx)&&num(s.ry)&&s.rx>=s.ry&&s.ry>1e-6&&num(s.rotation)&&DraftGeometry.bounds(s).every(num):s?.type==='arc'&&point(s.center)&&num(s.radius)&&s.radius>0&&num(s.start_deg)&&num(s.extent_deg)&&Math.abs(s.extent_deg)>0&&Math.abs(s.extent_deg)<=360.001;
+      for(const path of paths){if(!path||!Array.isArray(path.segments))throw Error('線データが不正です。');for(const k of ['closed'])if(path[k]!==undefined&&typeof path[k]!=='boolean')throw Error('線の属性が不正です。');for(const s of path.segments){if(++count>200000||!valid(s)||s.type==='ellipse'&&path.segments.length!==1)throw Error('線の座標が不正です。');}}
     }
     return DraftPaths.project(p);
   };

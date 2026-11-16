@@ -72,7 +72,7 @@ async function convertSelected(eventOrSource=null){
 }
 input.onchange=event=>{document.getElementById('pdfPage').value=1;convertSelected(event);};convertButton.onclick=convertSelected;
 window.convertDraftSessionSource=sourceId=>convertSelected(sourceId);
-for(const id of ['delete','merge','mergeArcs','align','linearize','corner','horizontal','vertical','rotateCW','rotateCCW','undo','redo'])document.getElementById(id).onclick=()=>editor.edit(id);
+for(const id of ['delete','merge','mergeArcs','mergeEllipse','align','linearize','corner','horizontal','vertical','rotateCW','rotateCCW','undo','redo'])document.getElementById(id).onclick=()=>editor.edit(id);
 document.getElementById('mode').onchange=e=>editor.setMode(e.target.value);
 document.getElementById('fit').onclick=()=>editor.fit();document.getElementById('zoomIn').onclick=()=>editor.zoom(1.5);document.getElementById('zoomOut').onclick=()=>editor.zoom(1/1.5);
 for(const id of ['showOriginal','opacity'])document.getElementById(id).oninput=()=>editor.draw();

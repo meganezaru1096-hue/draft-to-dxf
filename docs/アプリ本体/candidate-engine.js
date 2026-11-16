@@ -14,7 +14,7 @@ window.DraftCandidateEngine={
         if(length<=o.threshold)add({kind:'short',ref,length});
         if(s.type==='line'){entry.exact=JSON.stringify([entry.group,...[JSON.stringify(s.p0),JSON.stringify(s.p1)].sort()]);if(seen.has(entry.exact))add({kind:'duplicate',ref,reference:seen.get(entry.exact),length});else seen.set(entry.exact,ref);}
       }
-      if(s.type==='arc'&&Math.abs(s.extent_deg)>=359.999999)return;
+      if(G.closed(s))return;
       for(const endpoint of [0,1]){const point=G.point(s,endpoint),key=JSON.stringify([entry.group,...point]);counts.set(key,(counts.get(key)||0)+1);endpoints.push({entry,endpoint,point,key,id:endpoints.length});}
     });});
     if(!o.overlaps&&!o.isolated&&!(o.gapThreshold>0))return result;
@@ -65,7 +65,7 @@ window.DraftCandidateEngine={
         for(const b of nearby.found){
           if(a.entry.id===b.id||a.entry.group!==b.group)continue;
           const q=G.nearest(b.s,a.point);if(q.distance<=.01){connected=true;break;}
-          const interior=b.s.type==='arc'&&Math.abs(b.s.extent_deg)>=359.999999||q.t*b.length>.01&&(1-q.t)*b.length>.01;
+          const interior=G.closed(b.s)||q.t*b.length>.01&&(1-q.t)*b.length>.01;
           if(o.junctions&&interior&&q.distance<junctionDistance&&faces(a,q.point)){junctionDistance=q.distance;junction={kind:'junction',ref:a.entry.ref,reference:b.ref,endpoint:a.endpoint,points:[a.point.slice(),q.point],length:q.distance};}
         }
         if(connected)continue;
