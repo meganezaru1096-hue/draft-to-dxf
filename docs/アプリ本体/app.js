@@ -5,6 +5,8 @@ window.workerSource=null;
 window.probeState={ready:false,results:[],errors:[]};
 const editor=window.draftEditor=new DraftEditor(document.getElementById('preview'),message=>{if(!recovering&&message.action!=='historyRestore')DraftHistory.begin(editor,DraftCommandLabel(message));editor.lastRequest={...message};setBusy(true);worker.postMessage(message,message.pixels?[message.pixels]:[]);});
 let pendingProject=null,nextMetadata=null;
+document.getElementById('selectConnected').onclick=()=>{if(editor.busy||!editor.doc||!editor.selected.size)return;try{const before=editor.selected.size;editor.selected=DraftGeometry.connected(editor,Number(document.getElementById('connectedGap').value));editor.anchors.clear();editor.update();editor.draw();status.textContent=`つながり選択：${editor.selected.size}要素（${editor.selected.size-before}要素追加）。分岐・曖昧な接続では停止します。`;}catch(error){status.textContent=error.message;}};
+document.getElementById('repairLines').onclick=()=>{if(editor.busy||!editor.doc)return;const refs=[...editor.selected].map(k=>k.split(':').map(Number));editor.send({kind:'edit',action:'repairLines',label:'途切れの一括修復',refs,gap:Number(document.getElementById('repairGap').value),offset:Number(document.getElementById('repairOffset').value),angle:Number(document.getElementById('repairAngle').value)});};
 function setBusy(value){input.disabled=value;convertButton.disabled=value;editor.setBusy(value);}
 function fail(text){const matches=[...String(text).matchAll(/ValueError: ([^\n]+)/g)];status.textContent='エラー: '+(matches.length?matches.at(-1)[1]:text);logBox.textContent+='\n'+text;window.probeState.errors.push(text);if(!window.probeState.ready)window.DraftStartup?.fail();}
 function bindWorker(){const runtime=worker;

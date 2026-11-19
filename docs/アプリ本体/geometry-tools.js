@@ -120,6 +120,38 @@ window.DraftGeometry={
     return corners.some((p,i)=>this.intersections(s,{type:'line',p0:p,p1:corners[(i+1)%4]}).length);
   },
   allowed(path,s){const v=document.getElementById('selectFilter').value;return v==='all'||v===s.type;},
+  connected(e,gap){
+    if(!Number.isFinite(gap)||gap<0||gap>100)throw Error('つながり選択の隙間は0〜100pxです。');
+    const radius=Math.max(gap,1e-6),items=[],grid=new Map(),ends=[];
+    e.doc.paths.forEach((path,pi)=>{if(!e.visible(path))return;path.segments.forEach((s,si)=>{
+      const index=items.length,item={s,key:`${pi}:${si}`,allowed:this.allowed(path,s),bounds:this.bounds(s)};items.push(item);
+      if(this.closed(s)||this.length(s)<1e-6)return;
+      for(const t of [0,1]){const p=this.point(s,t),id=ends.length;ends.push({index,t,p});const key=`${Math.floor(p[0]/radius)},${Math.floor(p[1]/radius)}`;if(!grid.has(key))grid.set(key,[]);grid.get(key).push(id);}
+    });});
+    if(items.length>10000)throw Error('つながり選択は表示中の1万要素まで対応しています。範囲選択をご利用ください。');
+    const choices=new Map();
+    for(let id=0;id<ends.length;id++){
+      const a=ends[id],cell=a.p.map(v=>Math.floor(v/radius)),near=[];
+      for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const j of grid.get(`${cell[0]+dx},${cell[1]+dy}`)||[]){
+        const b=ends[j];if(a.index===b.index)continue;const distance=Math.hypot(a.p[0]-b.p[0],a.p[1]-b.p[1]);if(distance>gap+1e-8)continue;
+        near.push(j);
+      }
+      if(near.length!==1)continue;
+      const j=near[0],b=ends[j],sa=items[a.index].s,sb=items[b.index].s;
+      if(!items[a.index].allowed||!items[b.index].allowed)continue;
+      const d=Math.hypot(a.p[0]-b.p[0],a.p[1]-b.p[1]);
+      if(d>1e-5){const u=this.outward(sa,a.t),v=this.outward(sb,b.t),w=[(b.p[0]-a.p[0])/d,(b.p[1]-a.p[1])/d];if(u[0]*w[0]+u[1]*w[1]<.7||v[0]*w[0]+v[1]*w[1]>-.7)continue;}
+      // A third shape near the join (including an unselectable one) is a branch.
+      const epsilon=Math.max(1e-5,gap),mid=a.p.map((v,k)=>(v+b.p[k])/2);
+      const blocked=items.some((item,k)=>{if(k===a.index||k===b.index)return false;const box=item.bounds;if(box[0]>Math.max(a.p[0],b.p[0])+epsilon||box[2]<Math.min(a.p[0],b.p[0])-epsilon||box[1]>Math.max(a.p[1],b.p[1])+epsilon||box[3]<Math.min(a.p[1],b.p[1])-epsilon)return false;return [a.p,b.p,mid].some(p=>this.nearest(item.s,p).distance<=epsilon);});
+      if(!blocked)choices.set(id,j);
+    }
+    const graph=items.map(()=>[]);
+    for(const [a,b] of choices)if(choices.get(b)===a)graph[ends[a].index].push(ends[b].index);
+    const selected=new Set(e.selected),queue=items.map((item,i)=>selected.has(item.key)?i:-1).filter(i=>i>=0),visited=new Set(queue);
+    for(let k=0;k<queue.length;k++)for(const i of graph[queue[k]])if(!visited.has(i)){visited.add(i);queue.push(i);selected.add(items[i].key);}
+    return selected;
+  },
   snap(e,p,exclude=null,{midpoints=true,centers=true}={}){
     let point=p.slice(),kind='自由位置',best=10/e.view.scale;const nearby=[];
     const consider=(q,label)=>{const d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d<best){best=d;point=q.slice();kind=label;}};

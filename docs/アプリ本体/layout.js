@@ -55,6 +55,13 @@
   group('project','作業を再開・バックアップ',[project,el('backupTools')]);
   group('edit','02  選択と線の修正',[el('selectionTools'),toolbar('delete'),el('axisTools'),toolbar('linearize')]);
   el('selectionTools').querySelector('span').textContent='Altを押してなぞると触れた線を追加選択。重なった線の順送りはCtrl＋Alt＋クリック。';
+  const repair=make('div','toolbar');
+  const repairButton=make('button','','途切れを一括修復');repairButton.id='repairLines';repairButton.type='button';repairButton.disabled=true;
+  repair.append(repairButton,make('p','note','①選択モードで範囲を囲む → ②一括修復。選択した直線のみを接続し、交点付近は残します。破線の範囲は避けてください。設定は「線の修正・保護」。元に戻す1回で取り消せます。'));
+  for(const [id,label,value,max] of [['repairGap','一括修復：隙間 px',8,1000],['repairOffset','一括修復：横ずれ px',1,100],['repairAngle','一括修復：角度差 °',2,15]]){const l=make('label','',label),n=document.createElement('input');n.id=id;n.type='number';n.min='0.01';n.max=String(max);n.step='0.1';n.value=String(value);l.append(n);repair.append(l);}
+  sidebar.querySelector('#tools-edit .tool-body').append(repair);
+  const connectedButton=make('button','','つながり選択');connectedButton.id='selectConnected';connectedButton.type='button';connectedButton.disabled=true;connectedButton.title='選択した線から端点のつながりをたどります。分岐では停止。図形は変更しません。';el('selectionTools').append(connectedButton);
+  const connectLabel=make('label','','つながり選択：隙間 px'),connectGap=document.createElement('input');connectGap.id='connectedGap';connectGap.type='number';connectGap.min='0';connectGap.max='100';connectGap.step='0.1';connectGap.value='3';connectLabel.append(connectGap);repair.append(connectLabel);
   group('region','範囲を再変換・保護',[el('regionTools')]);
   group('check','03  気になる線を点検',[el('gapControls'),el('inspectionAdvanced'),el('inspectionPanel')]);
   group('draw','04  直線・円・円弧を描く',[toolbar('drawLine'),el('drawPrecision'),el('snapTools')]);

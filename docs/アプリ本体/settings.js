@@ -19,7 +19,7 @@
     ['exportDxf','DXF保存','','exportDxf'],['exportPdf','PDF保存','','exportPdf']
   ];
   const sections=[
-    ['editing','線の修正・保護',['tolerance','autoProtect','showProtection']],
+    ['editing','線の修正・保護',['tolerance','repairGap','repairOffset','repairAngle','connectedGap','autoProtect','showProtection']],
     ['measurement','縮尺設定',['calibrationMethod']],
     ['snapping','吸着',['drawSnap','endpointSnap','cutSnap','measureSnap','snapMidpoint','snapCenter']],
     ['inspection','点検の判定基準',['shortThreshold','gapThreshold','overlapTolerance','isolationDistance','inspectGaps','inspectJunctions','inspectContinuity','inspectOverlap','inspectIsolated']]

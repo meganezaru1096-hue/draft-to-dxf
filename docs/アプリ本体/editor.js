@@ -44,6 +44,8 @@ window.DraftEditor = class {
     document.getElementById('elementCount').textContent=this.comparing?`修正前 ${this.baseline.reduce((n,p)=>n+p.segments.length,0)} ／ 編集後 ${count} 要素`:`全 ${count} 要素`;
     const types=[...this.selected].map(key=>{const [p,s]=key.split(':').map(Number);return this.doc?.paths[p]?.segments[s]?.type;});
     const noSelection=this.busy||!types.length,hasEllipse=types.includes('ellipse'),onlyLines=types.every(t=>t==='line');
+    document.getElementById('repairLines').disabled=this.busy||types.filter(t=>t==='line').length<2;
+    document.getElementById('selectConnected').disabled=this.busy||!types.length;
     document.getElementById('delete').disabled=noSelection;
     for(const id of ['merge','align'])document.getElementById(id).disabled=noSelection||hasEllipse;
     for(const id of ['horizontal','vertical','corner'])document.getElementById(id).disabled=noSelection||!onlyLines||(id==='corner'&&types.length!==2);
