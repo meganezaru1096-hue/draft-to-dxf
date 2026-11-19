@@ -67,7 +67,8 @@ window.DraftDraw = {
     }
     try{
       const segment=this.segment(editor.mode,points),closed=editor.mode==='drawCircle';
-      this.cancel(editor);editor.setBusy(true);editor.send({kind:'edit',action:'add',paths:[{closed,segments:[segment]}]});
+      const style=document.getElementById('lineStyle').value;
+      this.cancel(editor);editor.setBusy(true);editor.send({kind:'edit',action:'add',paths:[{closed,segments:[segment],...(style==='solid'?{}:{line_style:style})}]});
     }catch(error){document.getElementById('drawHint').textContent=error.message+' Escで描き直せます。';}
   },
   draw(editor,c){

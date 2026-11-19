@@ -46,6 +46,10 @@ window.DraftEditor = class {
     const noSelection=this.busy||!types.length,hasEllipse=types.includes('ellipse'),onlyLines=types.every(t=>t==='line');
     document.getElementById('repairLines').disabled=this.busy||types.filter(t=>t==='line').length<2;
     document.getElementById('selectConnected').disabled=this.busy||!types.length;
+    document.getElementById('applyLineStyle').disabled=this.busy||!types.length;
+    document.getElementById('lineStyle').disabled=this.busy;
+    const styles=new Set([...this.selected].map(key=>{const [p]=key.split(':').map(Number);return this.doc.paths[p].line_style||'solid';}));
+    document.getElementById('selectedLineStyle').textContent=styles.size>1?'選択：複数の線種が混在':styles.size?'選択：'+DraftLineStyle.get({line_style:[...styles][0]}).label:'';
     document.getElementById('delete').disabled=noSelection;
     for(const id of ['merge','align'])document.getElementById(id).disabled=noSelection||hasEllipse;
     for(const id of ['horizontal','vertical','corner'])document.getElementById(id).disabled=noSelection||!onlyLines||(id==='corner'&&types.length!==2);
@@ -87,12 +91,13 @@ window.DraftEditor = class {
     c.save();if(this.comparing)DraftRotation.context(c,this.doc.width,this.doc.height,this.baselineTurns);
     const moving=this.drag?.move?.started?this.drag.move.delta:this.pendingMove?.delta;
     for(let pi=0;pi<displayed.length;pi++){const p=displayed[pi];if(!this.visible(p))continue;
-      for(let si=0;si<p.segments.length;si++){const s=p.segments[si],selected=this.selected.has(`${pi}:${si}`);c.strokeStyle=selected?'#0057d9':'#d100b4';c.lineWidth=(selected?2.5:1)/v.scale;c.beginPath();
+      const style=DraftLineStyle.get(p);c.setLineDash(style.pattern.map(n=>n*3/v.scale));
+      for(let si=0;si<p.segments.length;si++){const s=p.segments[si],selected=this.selected.has(`${pi}:${si}`);c.strokeStyle=selected?'#0057d9':style.color;c.lineWidth=(selected?2.5:1)/v.scale;c.beginPath();
         if(selected&&moving){c.save();c.translate(...moving);}
         DraftGeometry.trace(c,s);c.stroke();if(selected&&moving)c.restore();
       }
     }
-    c.restore();if(!this.comparing){DraftMeasure.draw(this,c);
+    c.setLineDash([]);c.restore();if(!this.comparing){DraftMeasure.draw(this,c);
     DraftDraw.draw(this,c);
     DraftEndpoint.draw(this,c);
     DraftExtend.draw(this,c);

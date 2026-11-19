@@ -96,7 +96,7 @@
       else if(s.type==='ellipse'){const minor=this.number('propertyMinor')/mm;if(minor<=2e-6||minor>size)throw Error('短径は0より大きく、長径以下で指定してください。');segment={...s,rx:size/2,ry:minor/2,rotation:-(angle%180)*Math.PI/180};}
       else{const circle=DraftGeometry.closed(s);if(!circle&&(!angle||Math.abs(angle)>360))throw Error('開き角は0°以外、±360°以内です。');segment={...s,radius:circle?size/2:size,extent_deg:circle?s.extent_deg:angle};}
       if(p.segments.length===1){p.segments[si]=segment;p.closed=DraftGeometry.closed(segment);}
-      else{p.segments.splice(si,1);p.closed=false;paths.push({segments:[segment],closed:DraftGeometry.closed(segment)});}
+      else{p.segments.splice(si,1);p.closed=false;paths.push({...p,segments:[segment],closed:DraftGeometry.closed(segment)});}
       this.replace(e,paths,'選択寸法変更',[p.segments.length===1&&e.doc.paths[pi].segments.length===1?[pi,si]:[paths.length-1,0]]);
     }catch(error){$('propertyHint').textContent=error.message;}},
     copy(e){try{if(e.busy)return;const mm=this.scale(e),dx=this.number('copyX')/mm,dy=-this.number('copyY')/mm;if(!Number.isFinite(dx+dy)||Math.hypot(dx,dy)<1e-9)throw Error('0以外の複写距離を指定してください。');const added=this.selected(e).map(({path,s})=>{s=structuredClone(s);if(s.type==='line'){s.p0=[s.p0[0]+dx,s.p0[1]+dy];s.p1=[s.p1[0]+dx,s.p1[1]+dy];}else s.center=[s.center[0]+dx,s.center[1]+dy];return {...path,segments:[s],closed:DraftGeometry.closed(s)};});e.send({kind:'edit',action:'add',paths:added,label:'複写',selectAdded:true});}catch(error){$('status').textContent=error.message;}},
