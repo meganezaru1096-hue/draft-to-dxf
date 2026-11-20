@@ -58,7 +58,7 @@
   const repair=make('div','toolbar');
   const repairButton=make('button','','途切れを一括修復');repairButton.id='repairLines';repairButton.type='button';repairButton.disabled=true;
   repair.append(repairButton,make('p','note','①選択モードで範囲を囲む → ②一括修復。選択した直線のみを接続し、交点付近は残します。破線の範囲は避けてください。設定は「線の修正・保護」。元に戻す1回で取り消せます。'));
-  for(const [id,label,value,max] of [['repairGap','一括修復：隙間 px',8,1000],['repairOffset','一括修復：横ずれ px',1,100],['repairAngle','一括修復：角度差 °',2,15]]){const l=make('label','',label),n=document.createElement('input');n.id=id;n.type='number';n.min='0.01';n.max=String(max);n.step='0.1';n.value=String(value);l.append(n);repair.append(l);}
+  for(const [id,label,value,max] of [['repairGap','一括修復：隙間 px',20,1000],['repairOffset','一括修復：横ずれ px',3,100],['repairAngle','一括修復：角度差 °',6,15]]){const l=make('label','',label),n=document.createElement('input');n.id=id;n.type='number';n.min='0.01';n.max=String(max);n.step='0.1';n.value=String(value);l.append(n);repair.append(l);}
   sidebar.querySelector('#tools-edit .tool-body').append(repair);
   const styleTools=make('div','toolbar'),styleLabel=make('label','','線種'),styleSelect=document.createElement('select');styleSelect.id='lineStyle';
   for(const [value,label] of [['solid','実線 · 紫'],['dashed','破線 · 緑'],['dashdot','一点鎖線 · 橙']])styleSelect.add(new Option(label,value));

@@ -41,6 +41,8 @@
   function applyRecord(data,notify=false){
     savedAt=timestamp(data);keys=completeKeys(data?.keys,(data?.keyDefaultsVersion||1)<2)||{...defaultKeys};values={...defaults};
     for(const id of savedControls){const value=data?.values?.[id]??(id==='pdfDpi'?legacyPdfDpi:undefined);if(validValue(id,value))values[id]=value;}
+    // Upgrade only the complete old default preset. Keep custom values intact.
+    if((data?.repairDefaultsVersion||1)<2&&['repairGap','repairOffset','repairAngle'].every((id,i)=>Number(values[id])===[8,1,2][i])){values.repairGap='20';values.repairOffset='3';values.repairAngle='6';}
     applying=true;try{for(const id of savedControls){const n=$(id);if(n.type==='checkbox')n.checked=values[id];else n.value=values[id];if(notify)n.dispatchEvent(new Event('change',{bubbles:true}));}}finally{applying=false;}
   }
   applyRecord(restoredRecord);
@@ -59,7 +61,7 @@
   }
   let messageVersion=0,writeQueue=Promise.resolve();
   function report(text,error=false){messageVersion++;message.textContent=text;message.classList.toggle('is-error',error);}
-  const snapshot=()=>({version:1,keyDefaultsVersion:2,savedAt,keys:{...keys},values:{...values}});
+  const snapshot=()=>({version:1,keyDefaultsVersion:2,repairDefaultsVersion:2,savedAt,keys:{...keys},values:{...values}});
   // A second browser store recovers preferences when localStorage is unavailable.
   // This database is intentionally separate from drawing recovery and its cleanup.
   const database=new Promise(resolve=>{
