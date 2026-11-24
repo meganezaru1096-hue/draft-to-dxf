@@ -24,6 +24,11 @@ const editor=window.draftEditor=new DraftEditor(document.getElementById('preview
   worker.postMessage(message,message.pixels?[message.pixels]:[]);
 });
 let pendingProject=null,nextMetadata=null;
+const repairFields=['repairGap','repairOffset','repairAngle'];
+function syncRepairStrength(){const values=repairFields.map(id=>Number(document.getElementById(id).value));document.getElementById('repairStrength').value=Object.entries(DraftRepairPresets).find(([,preset])=>preset.every((v,i)=>v===values[i]))?.[0]||'custom';}
+for(const id of repairFields)for(const event of ['input','change'])document.getElementById(id).addEventListener(event,syncRepairStrength);
+document.getElementById('repairStrength').onchange=event=>{if(editor.busy)return;const preset=DraftRepairPresets[event.target.value];if(!preset)return;repairFields.forEach((id,i)=>{const n=document.getElementById(id);n.value=String(preset[i]);n.dispatchEvent(new Event('input',{bubbles:true}));n.dispatchEvent(new Event('change',{bubbles:true}));});syncRepairStrength();};
+syncRepairStrength();DraftSettings.ready.then(syncRepairStrength);
 document.getElementById('applyLineStyle').onclick=()=>{
   if(editor.busy||!editor.selected.size)return;
   editor.send({kind:'edit',action:'lineStyle',label:'線種変更',refs:[...editor.selected].map(k=>k.split(':').map(Number)),style:document.getElementById('lineStyle').value});

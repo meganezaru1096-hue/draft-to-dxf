@@ -6,7 +6,7 @@
     ['select','選択','V','tool-select'],['pan','画面移動','H','tool-pan'],
     ['drawLine','直線を描く','L','tool-drawLine'],['drawCircle','円を描く','C','tool-drawCircle'],['drawArc','円弧を描く','A','tool-drawArc'],
     ['endpoint','端点を動かす','E','tool-endpoint'],['splitLine','線を分割','X','tool-splitLine'],['trimLine','区間削除','T','tool-trimLine'],
-    ['extend','相手の線まで延長','','tool-extend'],
+    ['extend','相手まで延長・短縮','','tool-extend'],
     ['copySelected','選択を複写','','copySelected'],['moveSelected','選択を数値移動','','moveSelected'],['offsetSelected','オフセット複写','','offsetSelected'],['trimTo','相手まで切り詰め','','tool-trimTo'],
     ['filletSelected','角をR丸め','','filletSelected'],['rotateSelected','選択を回転','','rotateSelected'],['mirrorH','選択を左右反転','','mirrorH'],['mirrorV','選択を上下反転','','mirrorV'],
     ['toggleOriginal','下絵の表示切替','','showOriginal'],

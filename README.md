@@ -4,7 +4,7 @@ PDF・JPEG・PNG・TIFFの図面を線・円・円弧に変換し、修正して
 
 ## ブラウザで使う
 
-**[Draft to DXF を開く](https://meganezaru1096-hue.github.io/draft-to-dxf/?v=20261124)**
+**[Draft to DXF を開く](https://meganezaru1096-hue.github.io/draft-to-dxf/?v=20261124-2)**
 
 URLを開くだけで使用できます。ZIPのダウンロード・展開・追加インストールは不要です。初回は処理エンジンの読み込みに時間がかかります。
 図面はサーバーへ送信せず、ブラウザ内で処理します。完成したPDF・DXFは保存ボタンから保存できます。
@@ -12,7 +12,7 @@ URLを開くだけで使用できます。ZIPのダウンロード・展開・�
 
 ## ZIP版のダウンロード
 
-**[Draft to DXF をダウンロード（ZIP）](https://github.com/meganezaru1096-hue/draft-to-dxf/releases/download/v2026.11.24/Draft_to_DXF_2026-11-24.zip)**
+**[Draft to DXF をダウンロード（ZIP）](https://github.com/meganezaru1096-hue/draft-to-dxf/releases/download/v2026.11.24-2/Draft_to_DXF_2026-11-24_2.zip)**
 
 [リリース一覧](https://github.com/meganezaru1096-hue/draft-to-dxf/releases)
 
@@ -28,6 +28,10 @@ ZIPの中を直接開かず、必ず展開してください。「アプリ本�
 ZIP版は上記のリンク、または最新リリースの添付ZIPを使用してください。ブラウザで使う場合はダウンロード不要です。
 
 ## 今回の改善
+
+- 「延長/短縮」の共通ツールで、直線・円弧の端点を相手との交点まで調整。
+- 一括修復に弱・標準・強・最強を追加。最強は隙間200px・横ずれ50px・角度差45°まで許容します。別の線を巻き込む場合があるため範囲を絞って使用してください。
+- 強さと個別数値は自動保存。修復全体を1回で取り消せます。
 
 - 数値移動、選択図形の回転・左右／上下反転、2直線のR丸め、連続直線作図、オフセット方向のプレビューを追加。
 - ページ切り替え時の元ファイル・ページ番号同期、不正DPIの保存防止、未保存作業の置き換え確認を改善。

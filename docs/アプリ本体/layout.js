@@ -59,7 +59,11 @@
   const repair=make('div','toolbar');
   const repairButton=make('button','','途切れを一括修復');repairButton.id='repairLines';repairButton.type='button';repairButton.disabled=true;
   repair.append(repairButton,make('p','note','①選択モードで範囲を囲む → ②一括修復。選択した直線のみを接続し、交点付近は残します。破線の範囲は避けてください。設定は「線の修正・保護」。元に戻す1回で取り消せます。'));
-  for(const [id,label,value,max] of [['repairGap','一括修復：隙間 px',20,1000],['repairOffset','一括修復：横ずれ px',3,100],['repairAngle','一括修復：角度差 °',6,15]]){const l=make('label','',label),n=document.createElement('input');n.id=id;n.type='number';n.min='0.01';n.max=String(max);n.step='0.1';n.value=String(value);l.append(n);repair.append(l);}
+  window.DraftRepairPresets={weak:[8,1,2],normal:[20,3,6],strong:[60,12,18],maximum:[200,50,45]};
+  const strengthLabel=make('label','','統合の強さ'),strength=document.createElement('select');strength.id='repairStrength';
+  for(const [id,label] of [['weak','弱'],['normal','標準'],['strong','強'],['maximum','最強（大きなずれ）'],['custom','カスタム']])strength.add(new Option(label,id));strength.value='normal';strengthLabel.append(strength);repair.prepend(strengthLabel);
+  repair.append(make('p','note','最強は隙間200px・横ずれ50px・角度差45°を許容します。別の線を統合する場合があるため範囲を絞り、結果を確認してください。'));
+  for(const [id,label,value,max] of [['repairGap','一括修復：隙間 px',20,1000],['repairOffset','一括修復：横ずれ px',3,100],['repairAngle','一括修復：角度差 °',6,60]]){const l=make('label','',label),n=document.createElement('input');n.id=id;n.type='number';n.min='0.01';n.max=String(max);n.step='0.1';n.value=String(value);l.append(n);repair.append(l);}
   sidebar.querySelector('#tools-edit .tool-body').append(repair);
   const styleTools=make('div','toolbar'),styleLabel=make('label','','線種'),styleSelect=document.createElement('select');styleSelect.id='lineStyle';
   for(const [value,label] of [['solid','実線 · 紫'],['dashed','破線 · 緑'],['dashdot','一点鎖線 · 橙']])styleSelect.add(new Option(label,value));
@@ -72,7 +76,7 @@
   group('draw','04  直線・円・円弧を描く',[toolbar('drawLine'),el('drawPrecision'),el('snapTools')]);
   group('arc','円・円弧の数値編集',[el('arcProperties')]);
   group('endpoint','端点を動かす',[toolbar('moveEndpoint')]);
-  group('extend','相手の線まで延長',[toolbar('extendTo')]);
+  group('extend','相手まで延長・短縮',[toolbar('extendTo')]);
   group('cut','分割・部分削除',[toolbar('splitLine')]);
   group('measure','05  距離測定・実寸合わせ',[toolbar('measureMode'),toolbar('applyScale')]);
   group('output','06  PDF・DXFの出力設定',[toolbar('dpi')]);
@@ -87,7 +91,7 @@
   // Tool shortcuts live beside the drawing; detailed settings stay in the sidebar.
   const toolStrip=make('div','mode-strip');toolStrip.setAttribute('role','toolbar');toolStrip.setAttribute('aria-label','図面の操作');
   const proxies=[];
-  const modes=[['select','選択','V'],['pan','画面移動','H'],['drawLine','直線','L'],['drawCircle','円','C'],['drawArc','円弧','A'],['endpoint','端点','E'],['extend','延長',''],['trimTo','切り詰め',''],['splitLine','分割','X'],['trimLine','区間削除','T'],['measure','測定','M'],['region','範囲','R']];
+  const modes=[['select','選択','V'],['pan','画面移動','H'],['drawLine','直線','L'],['drawCircle','円','C'],['drawArc','円弧','A'],['endpoint','端点','E'],['extend','延長/短縮',''],['trimTo','切り詰め',''],['splitLine','分割','X'],['trimLine','区間削除','T'],['measure','測定','M'],['region','範囲','R']];
   for(const [mode,label,key] of modes){
     const b=make('button','mode-button',label);b.type='button';b.id='tool-'+mode;b.dataset.mode=mode;b.title=label+(key?'（'+key+'）':'');if(key)b.setAttribute('aria-keyshortcuts',key);
     b.prepend(icon(mode));

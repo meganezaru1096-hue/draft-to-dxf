@@ -101,6 +101,7 @@ window.DraftEditor = class {
     const types=[...this.selected].map(key=>{const [p,s]=key.split(':').map(Number);return this.doc?.paths[p]?.segments[s]?.type;});
     const noSelection=this.busy||!types.length,hasEllipse=types.includes('ellipse'),onlyLines=types.every(t=>t==='line');
     document.getElementById('repairLines').disabled=this.busy||types.filter(t=>t==='line').length<2;
+    document.getElementById('repairStrength').disabled=this.busy;
     document.getElementById('selectConnected').disabled=this.busy||!types.length;
     document.getElementById('applyLineStyle').disabled=this.busy||!types.length;
     document.getElementById('lineStyle').disabled=this.busy;

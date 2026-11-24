@@ -2,7 +2,7 @@
   "parity_diagnostics.py": "63330f8f14bfecfb29d059dd3ff970bdc1979c395faa54cfd0ded5d90a00ed13",
   "contour_compat.py": "1b4ca7b6e84a316ce1619b38c359caf13792bd76ddb0d85e7c69d65231a9bd43",
   "rotation_compat.py": "93e5c53e4ea840bba292534f60b4882180c18c4911cb5bc93d25e8b94627e75e",
-  "document_bridge.py": "831dcef73ebdf566a9fd612fa06492989fb1c407ee25f8b95520e41b586fa3f2",
+  "document_bridge.py": "80858dc32bc1d7ba9b214ba789e06d489c23af54b76ffec875796c43e4e3eef4",
   "sketch2vec/__init__.py": "4f54017d24a11d6852c959b36fb960bfd02652b90b3927ba216914da85c7da44",
   "sketch2vec/params.py": "481115988c68bb9e935ba1c13e1c880757ee163d892c4dc558a3828047302f6f",
   "sketch2vec/pipeline.py": "46f5d04fa8bb8d909ee99ff104e687270b57d35377202fff7834304694e2b2b7",
@@ -12,7 +12,7 @@
   "sketch2vec/regularize.py": "e0b4b2e5f9bc396e7c699f5bb6a879c13cb0ec707c678d8e176266f5007457ab",
   "sketch2vec/skeleton.py": "d93899b44985e443a940f3238c98d33031dc5d3103b73b474d9e5cd1579d5440",
   "sketch2vec/text_regions.py": "56cfca287b4660fe48a1053141a6f72d2a2b6cdd2346efeee5ec89a901d577d1",
-  "sketch2vec/editing.py": "f76ac487e2ddab3ee0b57e0ff2ac101ad6b6d8155b4fd4920619f057b88abb5e",
+  "sketch2vec/editing.py": "c19d2c9af55958f6bd84cc03ccd20dfef64375e9e503d1fdd3bbb2ace585aa65",
   "sketch2vec/ellipse_fit.py": "faf119c0e7bd4ac26014fabe0c5951528d530253600f0aa799724f119e078f71",
-  "sketch2vec/batch_join.py": "50967f0668e2a0b7ae1dbc33e6026a244c04682ac626f65bc77d8ad4f504a7bb"
+  "sketch2vec/batch_join.py": "6522e17c8bc75fd8358df1f791706dfc1ea2eb4b7bea14147344afd966808f97"
 }
