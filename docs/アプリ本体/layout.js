@@ -55,10 +55,10 @@
   group('project','作業を再開・バックアップ',[project,el('backupTools')]);
   group('edit','02  選択と線の修正',[el('selectionTools'),toolbar('delete'),el('axisTools'),toolbar('linearize')]);
   el('boxSelection').add(new Option('方向で自動（左→右：内包 / 右→左：交差）','auto'));
-  el('selectionTools').querySelector('span').textContent='Altでなぞり追加（Shift併用で解除）。Ctrl＋Shift＋ドラッグで枠除外。重なり順送りはCtrl＋Alt＋クリック。';
+  el('selectionTools').querySelector('span').textContent='直線をダブルクリックで延長上の途切れを選択。Altでなぞり追加（Shift併用で解除）。Ctrl＋Shift＋ドラッグで枠除外。重なり順送りはCtrl＋Alt＋クリック。';
   const repair=make('div','toolbar');
   const repairButton=make('button','','途切れを一括修復');repairButton.id='repairLines';repairButton.type='button';repairButton.disabled=true;
-  repair.append(repairButton,make('p','note','①選択モードで範囲を囲む → ②一括修復。選択した直線のみを接続し、交点付近は残します。破線の範囲は避けてください。設定は「線の修正・保護」。元に戻す1回で取り消せます。'));
+  repair.append(repairButton,make('p','note','①範囲を囲む、または直線をダブルクリックで延長上の候補を選択 → ②一括修復。選択した直線のみを接続し、交点付近は残します。破線の範囲は避けてください。設定は「線の修正・保護」。元に戻す1回で取り消せます。'));
   window.DraftRepairPresets={weak:[8,1,2],normal:[20,3,6],strong:[60,12,18],maximum:[200,50,45]};
   const strengthLabel=make('label','','統合の強さ'),strength=document.createElement('select');strength.id='repairStrength';
   for(const [id,label] of [['weak','弱'],['normal','標準'],['strong','強'],['maximum','最強（大きなずれ）'],['custom','カスタム']])strength.add(new Option(label,id));strength.value='normal';strengthLabel.append(strength);repair.prepend(strengthLabel);
@@ -86,6 +86,7 @@
   const helpBody=make('div','tool-body');
   helpBody.append(make('p','note','ショートカットは上部の「設定」で確認・変更できます。入力欄の編集中はツールを切り替えません。Ctrlを含む保存キーは入力欄からも編集データを保存します。'));
   helpBody.append(make('p','note','右ドラッグ、ホイール押し込み、Shift＋ドラッグ、またはスペース＋ドラッグで一時的に移動。Escは作成途中の点を中止、もう一度で選択モードへ戻ります。修正は即反映され、「元に戻す」で取り消せます。'));
+  helpBody.append(make('p','note','選択モードで直線をダブルクリックすると、同じ方向・線種の途切れた直線を両側にたどって選択します。隙間・横ずれ・角度差は「統合の強さ」の値を使用。Ctrl併用で今の選択へ追加します。選択のみで図形は変わりません。確認後に「統合」または「一括修復」を使ってください。'));
   helpBody.append(make('p','note','選択モードでAltを押しながらなぞると線・円弧を追加選択します。マウスを押さなくても使えます。重なった要素はCtrl＋Alt＋クリックで順送り。「延長/短縮」は動かす側の端点、相手の線の順にクリックし、接触位置まで長さを変更します。'));
   for(const text of notes)helpBody.append(make('p','note',text));
   helpBody.append(el('summary').closest('details'),el('log').closest('details'));help.append(helpBody);sidebar.append(help);

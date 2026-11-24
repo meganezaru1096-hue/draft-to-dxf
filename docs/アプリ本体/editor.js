@@ -354,6 +354,23 @@ window.DraftEditor = class {
     return delta;
   }
   stopBrush(){this.altPainting=false;this.altSubtract=false;this.brushLast=null;this.brushCache=null;this.canvas.classList.remove('is-brushing');}
+  selectContinuations(screenPoint,add=false){
+    if(!this.doc||this.busy||this.mode!=='select'||DraftSettings.isOpen)return;
+    const point=this.world(screenPoint),key=this.nearestKeyAt(point);if(!key)return;
+    const [pi,si]=key.split(':').map(Number),seed=this.doc.paths[pi].segments[si];
+    if(seed.type!=='line'){document.getElementById('status').textContent='途切れの候補選択は、直線をダブルクリックしてください。';return;}
+    try{
+      const options=Object.fromEntries([['gap','repairGap'],['offset','repairOffset'],['angle','repairAngle']].map(([name,id])=>[name,Number(document.getElementById(id).value)]));
+      const result=DraftGeometry.continuations(this,key,options);
+      if(!result.selected.size)return;
+      if(!add){this.selected.clear();this.anchors.clear();}
+      for(const candidate of result.selected)this.selected.add(candidate);
+      this.anchors.set(key,point);this.stopBrush();this.cyclePick=null;this.hoverKey=null;this.moveSnap=null;
+      this.update();this.draw();
+      const count=result.selected.size-1;
+      document.getElementById('status').textContent=count?`延長上の途切れを${count}本追加選択（候補${result.selected.size}本）。図形は未変更です。「統合」または「一括修復」で修正できます。${result.limited?'候補が5000本を超えるため、許容値を下げて絞り込んでください。':''}`:`延長上に候補は見つかりませんでした。線は1本選択しています。必要に応じて「統合の強さ」を上げてください。`;
+    }catch(error){document.getElementById('status').textContent=error.message;}
+  }
   paintSelection(from,to,subtract=false){
     if(this.mode!=='select'||this.busy||!this.doc||DraftSettings.isOpen)return;
     const a=this.world(from),b=this.world(to),trace={type:'line',p0:a,p1:b},radius=4/this.view.scale;
@@ -454,6 +471,7 @@ window.DraftEditor = class {
       this.zoom(e.deltaY<0?1.15:1/1.15,this.position(e));
     },{passive:false});
     canvas.addEventListener('pointerdown',e=>{
+      this.selectionClick=null;
       if(this.processing||!this.doc||this.drag)return;e.preventDefault();canvas.focus({preventScroll:true});canvas.setPointerCapture(e.pointerId);
       const point=this.position(e);
       const subtract=(e.ctrlKey||e.metaKey)&&e.shiftKey&&!e.altKey&&this.mode==='select'&&e.button===0;
@@ -512,7 +530,8 @@ window.DraftEditor = class {
     const cancelDrag=()=>{this.drag=null;this.moveSnap=null;this.stopBrush();canvas.classList.toggle('is-panning',!!this.spacePan);this.update();this.draw();};
     canvas.addEventListener('pointerup',e=>{
       if(!this.drag||this.drag.pointerId!==e.pointerId)return;
-      const d=this.drag;this.drag=null;
+      const d=this.drag,end=this.position(e);this.drag=null;
+      this.selectionClick=this.mode==='select'&&e.button===0&&!d.pan&&!d.paint&&!d.move?.started&&Math.hypot(end[0]-d.start[0],end[1]-d.start[1])<4?{point:end,time:performance.now()}:null;
       if(d.move?.started){
         const delta=this.computeMoveDelta(d,this.position(e),e.shiftKey);
         this.moveSnap=null;
@@ -521,6 +540,11 @@ window.DraftEditor = class {
       }else if(!d.pan&&!d.paint)this.choose(d.start,this.position(e),d.add,d.cycle,d.subtract);
       this.moveSnap=null;
       canvas.classList.toggle('is-panning',!!this.spacePan);window.DraftLayout?.update(this);this.draw();
+    });
+    canvas.addEventListener('dblclick',e=>{
+      const point=this.position(e),click=this.selectionClick;this.selectionClick=null;
+      if(e.button!==0||e.altKey||e.shiftKey||this.spacePan||this.mode!=='select'||this.busy||!click||performance.now()-click.time>1000||Math.hypot(point[0]-click.point[0],point[1]-click.point[1])>=4)return;
+      e.preventDefault();this.selectContinuations(point,e.ctrlKey||e.metaKey);
     });
     canvas.addEventListener('pointercancel',cancelDrag);
     canvas.addEventListener('pointerleave',()=>{this.pointerInside=false;this.hoverKey=null;this.measureHover=null;this.stopBrush();this.update();this.scheduleDraw();});

@@ -161,6 +161,48 @@ window.DraftGeometry={
     return corners.some((p,i)=>this.intersections(s,{type:'line',p0:p,p1:corners[(i+1)%4]}).length);
   },
   allowed(path,s){const v=typeof document!=='undefined'?document.getElementById('selectFilter')?.value:'all';return !v||v==='all'||v===s.type;},
+  continuations(e,seedKey,{gap,offset,angle}){
+    for(const [value,max] of [[gap,1000],[offset,100],[angle,60]])if(!Number.isFinite(value)||value<=0||value>max)throw Error('候補選択の隙間・横ずれ・角度差は、一括修復の設定を確認してください。');
+    const selected=new Set(),index=this.spatialIndex(e.doc),[pi,si]=seedKey.split(':').map(Number),path=e.doc?.paths[pi],seed=path?.segments[si];
+    if(!index||seed?.type!=='line'||!e.visible(path)||!this.allowed(path,seed))return {selected,limited:false};
+    const length=this.length(seed);if(!Number.isFinite(length)||length<1e-6)return {selected,limited:false};
+    const origin=seed.p0,u=seed.p1.map((v,i)=>(v-origin[i])/length),cos=Math.cos(angle*Math.PI/180),style=path.line_style||'solid',cache=new Map(),epsilon=1e-7;
+    const candidate=item=>{
+      if(cache.has(item.key))return cache.get(item.key);
+      const {s,path}=item;let result=null;
+      if(s.type==='line'&&e.visible(path)&&this.allowed(path,s)&&(path.line_style||'solid')===style){
+        const len=this.length(s),dx=s.p1[0]-s.p0[0],dy=s.p1[1]-s.p0[1];
+        if(Number.isFinite(len)&&len>=1e-6&&Math.abs(dx*u[0]+dy*u[1])/len>=cos-1e-12){
+          const points=[s.p0,s.p1],along=points.map(p=>(p[0]-origin[0])*u[0]+(p[1]-origin[1])*u[1]);
+          // Keep the original line as the reference: repeated small steps must
+          // not gradually walk onto a neighbouring parallel or a curved outline.
+          if(points.every(p=>Math.abs((p[0]-origin[0])*u[1]-(p[1]-origin[1])*u[0])<=offset+epsilon)){
+            const first=along[0]<=along[1]?0:1;
+            result={...item,lo:along[first],hi:along[1-first],left:points[first],right:points[1-first]};
+          }
+        }
+      }
+      cache.set(item.key,result);return result;
+    };
+    const start=candidate({key:seedKey,path,s:seed,bounds:this.bounds(seed)}),queue=[];
+    if(!start)return {selected,limited:false};selected.add(seedKey);queue.push(start);
+    for(let i=0;i<queue.length;i++){
+      const current=queue[i],b=current.bounds,box=[b[0]-gap-epsilon,b[1]-gap-epsilon,b[2]+gap+epsilon,b[3]+gap+epsilon];
+      for(const item of index.queryBox(box)){
+        if(selected.has(item.key))continue;
+        const next=candidate(item);if(!next)continue;
+        const overlap=Math.min(current.hi,next.hi)-Math.max(current.lo,next.lo);
+        // Small end overlaps are common in scans; substantial overlaps are
+        // side-by-side lines or duplicates, not a continuation of an endpoint.
+        if(overlap>Math.min(gap,.25*(current.hi-current.lo),.25*(next.hi-next.lo))+epsilon)continue;
+        const [left,right]=current.lo<=next.lo?[current,next]:[next,current],dx=right.left[0]-left.right[0],dy=right.left[1]-left.right[1];
+        if(Math.hypot(dx,dy)>gap+epsilon||Math.abs(dx*u[1]-dy*u[0])>offset+epsilon)continue;
+        if(selected.size>=5000)return {selected,limited:true};
+        selected.add(next.key);queue.push(next);
+      }
+    }
+    return {selected,limited:false};
+  },
   connected(e,gap){
     if(!Number.isFinite(gap)||gap<0||gap>100)throw Error('つながり選択の隙間は0〜100pxです。');
     const radius=Math.max(gap,1e-6),items=[],grid=new Map(),ends=[];
