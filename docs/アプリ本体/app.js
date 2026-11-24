@@ -7,7 +7,30 @@ const workerBlobParts=window.workerSource?[window.workerSource]:[
 ];
 const workerUrl=URL.createObjectURL(new Blob(workerBlobParts,{type:'text/javascript'}));
 workerBlobParts.length=0; // The Blob owns the bytes; do not retain the large source strings.
-let worker=new Worker(workerUrl),recovering=false,conversionToken=0;
+let worker=new Worker(workerUrl),recovering=false,conversionToken=0,deskewSeq=0;
+const pendingDeskew=new Map();
+let pendingBridgeModel=null;
+function rejectPendingDeskew(reason){for(const entry of pendingDeskew.values())entry.reject(Error(reason));pendingDeskew.clear();}
+window.requestDraftBridgeProposals=({requestId,width,height,pixels,model})=>{
+  pendingBridgeModel=model;
+  worker.postMessage({kind:'bridgeProposals',requestId,width,height,pixels},[pixels]);
+};
+function deskewCanvasInWorker(canvas,dpi,noise,token){
+  return new Promise((resolve,reject)=>{
+    if(token!==conversionToken){resolve(0);return;}
+    const requestId=++deskewSeq;
+    const ctx=canvas.getContext('2d'),imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const buffer=imageData.data.buffer;
+    pendingDeskew.set(requestId,{resolve:data=>{
+      if(token!==conversionToken){resolve(0);return;}
+      if(data.pixels&&Math.abs(data.angle)>=1e-3){
+        ctx.putImageData(new ImageData(new Uint8ClampedArray(data.pixels),data.width,data.height),0,0);
+      }
+      resolve(Number(data.angle)||0);
+    },reject});
+    worker.postMessage({kind:'deskew',requestId,width:canvas.width,height:canvas.height,pixels:buffer,channels:4,dpi,noise},[buffer]);
+  });
+}
 window.workerSource=null;window.workerRuntimeParts=null;window.workerAppParts=null;
 window.probeState={ready:false,results:[],errors:[]};
 const logLines=[];
@@ -68,6 +91,9 @@ function bindWorker(){
   runtime.onerror=event=>{
     if(runtime!==worker)return;
     event.preventDefault();
+    rejectPendingDeskew('処理エンジンが停止しました。');
+    pendingBridgeModel=null;window.DraftBridgeProposals?.reset(editor);
+    editor.pendingTexts=null;window.DraftJapaneseOcr?.cancel();
     window.DraftRuntime.failed=true;
     DraftHistory.abort(editor);
     editor.comparing=false;editor.pendingMove=null;editor.pendingPreview=null;editor.drag=null;
@@ -79,6 +105,16 @@ function bindWorker(){
   runtime.onmessage=async({data})=>{
     if(runtime!==worker)return;
     if(data.kind==='startup')window.DraftStartup?.stage(data.phase);
+    if(data.kind==='deskewed'){
+      const entry=pendingDeskew.get(data.requestId);
+      if(entry){pendingDeskew.delete(data.requestId);if(data.error)entry.reject(Error(data.error));else entry.resolve(data);}
+      return;
+    }
+    if(data.kind==='bridgeProposals'){
+      const model=pendingBridgeModel;pendingBridgeModel=null;
+      window.DraftBridgeProposals?.receive(editor,data,model);
+      return;
+    }
     if(data.kind==='log')appendLog(data.text);
     if(data.kind==='progress')status.textContent=data.text;
     if(data.kind==='preview'){DraftWorkflow.showPreview(editor,data.response,data.label);status.textContent='編集を反映しています…';}
@@ -90,6 +126,7 @@ function bindWorker(){
       if(!window.probeState.ready){window.DraftRuntime.failed=true;setBusy(true);}
     }
     if(data.kind==='editError'){
+      editor.pendingTexts=null;
       pendingProject=null;editor.lastRequest=null;editor.pendingRotationMeta=null;editor.pendingMove=null;
       if(window.DraftSession){DraftSession.switching=null;DraftSession.pendingWorkspace=null;}
       DraftHistory.abort(editor);
@@ -134,13 +171,14 @@ function bindWorker(){
     if(data.kind==='result'&&!recovering){
       const r=data.result;
       const meta=nextMetadata||{name:'test-drawing',dpi:300,dirty:false};nextMetadata=null;
+      r.texts=meta.texts||[];
       if(meta.note)r.summary=meta.note+'\n'+r.summary;
       window.probeState.results.push({summary:r.summary,width:r.width,height:r.height,stats:r.stats,input_sha256:r.input_sha256,stages:r.stages,paths:r.paths,trace:r.trace?(r.trace.approximations?r.trace:{angle:r.trace.angle}):undefined});
       if(window.probeState.results.length>2)window.probeState.results.shift();
       document.getElementById('summary').textContent=r.summary;
       if(r.versions)appendLog(JSON.stringify(r.versions,null,2));
       document.getElementById('dpi').value=meta.dpi;
-      editor.setDocument(r,{...meta,background:r.trace?.gray_png?'data:image/png;base64,'+r.trace.gray_png:null});
+      editor.setDocument(r,{...meta,background:meta.originalBackground||(r.trace?.gray_png?'data:image/png;base64,'+r.trace.gray_png:null)});
       window.DraftSession?.converted(editor,meta.totalPages||null);
     }
   };
@@ -149,6 +187,10 @@ window.DraftRuntime={
   failed:false,
   restart(){
     conversionToken++;
+    rejectPendingDeskew('処理を再起動しました。');
+    pendingBridgeModel=null;window.DraftBridgeProposals?.reset(editor);
+    window.DraftPreprocessMl?.cancel();
+    window.DraftJapaneseOcr?.cancel();editor.pendingTexts=null;
     window.cancelPdfRead?.();window.cancelTiffRead?.();
     worker.terminate();
     recovering=!!editor.doc;pendingProject=null;nextMetadata=null;
@@ -213,19 +255,61 @@ async function convertSelected(eventOrOptions=null){
     tracing=canvas.draftTraceCanvas||canvas;
     const dpi=canvas.draftDpi||(isPdf?300:Number(document.getElementById('dpi').value));
     if(!Number.isFinite(dpi)||dpi<1||dpi>9600)throw Error('出力解像度は1〜9600dpiで指定してください。');
-    nextMetadata={name:file.name.replace(/\.[^.]+$/,'')+(isPdf||isTiff?'_p'+page:''),dpi,dirty:true,note:canvas.draftImportNote,totalPages:canvas.draftTotalPages||null};
+    let texts=canvas.draftTexts||[],deskewAngle=0;
+    const useAiPreprocess=(document.getElementById('preprocessMode')?.value==='ai')&&!canvas.draftPaths;
+    if((document.getElementById('textMode').value==='auto'&&!texts.length)||useAiPreprocess){
+      if(canvas.draftGrayPixels){const tmp=document.createElement('canvas');tmp.width=canvas.width;tmp.height=canvas.height;const ctx=tmp.getContext('2d'),data=ctx.createImageData(tmp.width,tmp.height),gray=new Uint8Array(canvas.draftGrayPixels);for(let i=0;i<gray.length;i++){data.data[i*4]=data.data[i*4+1]=data.data[i*4+2]=gray[i];data.data[i*4+3]=255;}ctx.putImageData(data,0,0);for(const key of ['draftDpi','draftTotalPages','draftImportNote','draftNativePaths'])if(canvas[key]!==undefined)tmp[key]=canvas[key];canvas=tmp;tracing=canvas;}
+      if(!canvas.draftPaths&&!canvas.draftNativePaths){
+        deskewAngle=await deskewCanvasInWorker(canvas,dpi,Number(document.getElementById('noise').value),token);
+        if(token!==conversionToken)return;
+      }
+      if(document.getElementById('textMode').value==='auto'&&!texts.length){
+        const includeVertical=!!document.getElementById('includeVerticalOcr')?.checked;
+        texts=await DraftJapaneseOcr.recognize(canvas,{includeVertical,progress:message=>{if(token===conversionToken)status.textContent=message;},cancelled:()=>token!==conversionToken});
+        if(token!==conversionToken)return;
+      }
+    }
+    if(texts.length){
+      if(canvas.draftPaths)canvas.draftPaths=DraftTexts.removeOutlines(canvas.draftPaths,texts);
+      if(canvas.draftNativePaths)canvas.draftNativePaths=DraftTexts.removeOutlines(canvas.draftNativePaths,texts);
+      tracing=DraftJapaneseOcr.eraseRecognized(tracing,texts);
+    }
+    let aiGrayBuffer=null,aiNote=null;
+    if(useAiPreprocess&&window.DraftPreprocessMl){
+      const wAi=canvas.width,hAi=canvas.height;
+      let srcGray;
+      if(tracing.draftGrayPixels){
+        srcGray=new Uint8Array(tracing.draftGrayPixels);
+      }else{
+        const rgba=tracing.getContext('2d').getImageData(0,0,wAi,hAi).data;
+        srcGray=new Uint8Array(wAi*hAi);
+        for(let i=0,p=0;i<srcGray.length;i++,p+=4)srcGray[i]=(rgba[p]*77+rgba[p+1]*150+rgba[p+2]*29)>>8;
+      }
+      const aiRes=await DraftPreprocessMl.restoreGray(srcGray,wAi,hAi,{
+        progress:message=>{if(token===conversionToken)status.textContent=message;},
+        cancelled:()=>token!==conversionToken
+      });
+      if(token!==conversionToken||!aiRes)return;
+      aiGrayBuffer=aiRes.grayU8.buffer;
+      aiNote=`AI線復元（TinyLineUNet v3）適用：${aiRes.elapsedMs}ms（${aiRes.tilesTotal}タイル中 空${aiRes.tilesSkipped}スキップ）`;
+    }
+    const mergedNote=[canvas.draftImportNote,aiNote].filter(Boolean).join(' / ')||undefined;
+    nextMetadata={name:file.name.replace(/\.[^.]+$/,'')+(isPdf||isTiff?'_p'+page:''),dpi,dirty:true,note:mergedNote,totalPages:canvas.draftTotalPages||null,texts,originalBackground:(texts.length||aiGrayBuffer)?canvas.toDataURL('image/png'):null};
     status.textContent='変換中…';
     if(canvas.draftPaths){
       const background=canvas.toDataURL('image/png');
       worker.postMessage({kind:'import',paths:canvas.draftPaths,width:canvas.width,height:canvas.height,background,summary:canvas.draftSummary});
       return;
     }
-    const channels=tracing.draftGrayPixels?1:4;
-    const pixels=tracing.draftGrayPixels||tracing.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.buffer;
+    const channels=aiGrayBuffer?1:(tracing.draftGrayPixels?1:4);
+    const pixels=aiGrayBuffer||tracing.draftGrayPixels||tracing.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.buffer;
     const diagnostics=!!window.probeState.enableDiagnostics;
     worker.postMessage({
       kind:'image',width:canvas.width,height:canvas.height,pixels,channels,dpi,diagnostics,
       noise:Number(document.getElementById('noise').value),
+      aiPreprocessed:!!aiGrayBuffer,
+      textAligned:texts.length>0||Math.abs(deskewAngle)>=1e-3||!!aiGrayBuffer,
+      preDeskewedAngle:deskewAngle,
       ...(canvas.draftNativePaths?{nativePaths:canvas.draftNativePaths,background:canvas.toDataURL('image/png')}:{})
     },[pixels]);
   }catch(error){
@@ -254,9 +338,13 @@ document.getElementById('dpi').oninput=()=>{
   editor.update();
 };
 function basename(){return(editor.name||'drawing').replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').slice(0,120);}
-for(const[id,kind]of[['exportDxf','dxf'],['exportPdf','pdf']])document.getElementById(id).onclick=()=>{
+for(const[id,kind]of[['exportDxf','dxf'],['exportPdf','pdf']])document.getElementById(id).onclick=async()=>{
   try{
     if(!editor.doc)return;
+    if(kind==='pdf'&&editor.doc.texts?.length&&!window.DraftPdfTextFont){
+      status.textContent='PDF用日本語フォントを読み込んでいます…';
+      await DraftExport.ensurePdfFont();
+    }
     DraftExport.download(DraftExport[kind](editor.doc,Number(document.getElementById('dpi').value),editor.calibration?.mmPerPixel),basename()+'_edited.'+kind);
     status.textContent=kind.toUpperCase()+'のダウンロードを開始しました。作業再開には編集データも保存してください。';
   }catch(error){fail(String(error));}
@@ -316,3 +404,5 @@ document.getElementById('openProject').onchange=async event=>{
 DraftBackup.init(editor);
 DraftWorkbench.init(editor);
 DraftSession.init(editor);
+window.DraftTextTools?.init(editor);
+window.DraftBridgeProposals?.init(editor);

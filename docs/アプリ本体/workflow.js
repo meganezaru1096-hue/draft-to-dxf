@@ -108,14 +108,26 @@ window.DraftWorkflow={
     e.regionBox=[clamp(Math.floor(Math.min(a[0],b[0])),e.doc.width),clamp(Math.floor(Math.min(a[1],b[1])),e.doc.height),clamp(Math.ceil(Math.max(a[0],b[0])),e.doc.width),clamp(Math.ceil(Math.max(a[1],b[1])),e.doc.height)];
     e.update();e.draw();
   },
-  region(e){
+  async region(e){
     if(e.busy||!e.regionBox||!e.background)return;
     try{
       const b=e.regionBox,pad=64,x=Math.max(0,b[0]-pad),y=Math.max(0,b[1]-pad),w=Math.min(e.doc.width,b[2]+pad)-x,h=Math.min(e.doc.height,b[3]+pad)-y;
       const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');ctx.translate(-x,-y);DraftRotation.drawBackground(e,ctx);
-      const pixels=ctx.getImageData(0,0,w,h).data.buffer;
-      e.send({kind:'region',width:w,height:h,pixels,box:b,offset:[x,y],protection:e.protection,noise:Number(document.getElementById('regionNoise').value),dpi:Number(document.getElementById('dpi').value)||e.dpi||300});
-      document.getElementById('status').textContent='指定範囲を再変換しています…';
+      const rgba=ctx.getImageData(0,0,w,h).data;
+      const useAi=!!document.getElementById('regionAiRestore')?.checked&&!!window.DraftPreprocessMl;
+      let pixels=rgba.buffer,channels=4;
+      if(useAi){
+        e.setBusy(true);
+        try{
+          const srcGray=new Uint8Array(w*h);
+          for(let i=0,p=0;i<srcGray.length;i++,p+=4)srcGray[i]=(rgba[p]*77+rgba[p+1]*150+rgba[p+2]*29)>>8;
+          const aiRes=await DraftPreprocessMl.restoreGray(srcGray,w,h,{progress:msg=>{document.getElementById('status').textContent=msg;}});
+          if(!aiRes){e.setBusy(false);return;}
+          pixels=aiRes.grayU8.buffer;channels=1;
+        }finally{e.setBusy(false);}
+      }
+      e.send({kind:'region',width:w,height:h,pixels,channels,aiPreprocessed:useAi,box:b,offset:[x,y],protection:e.protection,noise:Number(document.getElementById('regionNoise').value),dpi:Number(document.getElementById('dpi').value)||e.dpi||300});
+      document.getElementById('status').textContent=useAi?'指定範囲をAI線復元で再変換しています…':'指定範囲を再変換しています…';
     }catch(error){document.getElementById('regionHint').textContent=error.message;}
   },
   update(e){

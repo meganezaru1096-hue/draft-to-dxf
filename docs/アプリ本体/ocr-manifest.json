@@ -1,0 +1,44 @@
+{
+  "engine": "ONNX Runtime Web 1.21.0 (WASM SIMD, single-threaded, offline)",
+  "models": {
+    "det": {
+      "name": "PP-OCRv6_det_small.onnx",
+      "upstream_sha256": "090f04abcd9d9a7498bc4ebf677e4cb9bdce1fe4197ddb7e529f1ef44e1ff94f",
+      "weight_rounding": "bfloat16-in-fp32",
+      "license": "Apache-2.0"
+    },
+    "rec": {
+      "name": "PP-OCRv6_rec_small.onnx",
+      "upstream_sha256": "6f327246b50388f3c176ae304bd95767ea6dc0c9ae92153ef8cbe210b3c14884",
+      "weight_rounding": "bfloat16-in-fp32",
+      "vocab_size": 18708,
+      "license": "Apache-2.0"
+    }
+  },
+  "files": {
+    "ort.wasm.min.js.gz": {
+      "bytes": 14976,
+      "sha256": "23c2c3723f612930873cd793b85c443441dc161d2e6ad6b3cbeeb2b37700f3a7"
+    },
+    "ort-wasm-simd-threaded.mjs.gz": {
+      "bytes": 9549,
+      "sha256": "12f4da47bf805ea76848061c53a6cc7b670d200b72f480cd57abd46e7c2ba3bc"
+    },
+    "ort-wasm-simd-threaded.wasm.gz": {
+      "bytes": 3225155,
+      "sha256": "0bcf140799bb1b459a473a0b4e2fbd596118d17899761faa878bf22c2c7d39df"
+    },
+    "ppocrv6_det_bf16.onnx.gz": {
+      "bytes": 4105251,
+      "sha256": "f8b9f0a9ae0d20b8a8b3e620528e3f86cc30c3b4f51d3f1e44274ccbc88999b6"
+    },
+    "ppocrv6_rec_bf16.onnx.gz": {
+      "bytes": 8981079,
+      "sha256": "04afdb06d0b851a154a1e0e606920ae716f37d405dab893a69a60f74a0148fa9"
+    },
+    "ppocrv6_vocab.txt.gz": {
+      "bytes": 39653,
+      "sha256": "28efffb1fe841b1510023296f8fb4dfe608fdadd3362d0ebed7fe6cdf6da3fd7"
+    }
+  }
+}

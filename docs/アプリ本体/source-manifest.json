@@ -3,6 +3,7 @@
   "contour_compat.py": "1b4ca7b6e84a316ce1619b38c359caf13792bd76ddb0d85e7c69d65231a9bd43",
   "rotation_compat.py": "93e5c53e4ea840bba292534f60b4882180c18c4911cb5bc93d25e8b94627e75e",
   "document_bridge.py": "80858dc32bc1d7ba9b214ba789e06d489c23af54b76ffec875796c43e4e3eef4",
+  "ml_bridge_runtime.py": "d610a64599dbdc16e8b9cfc2eea61477074e23daa4aefdf165146e49c5c56a45",
   "sketch2vec/__init__.py": "4f54017d24a11d6852c959b36fb960bfd02652b90b3927ba216914da85c7da44",
   "sketch2vec/params.py": "481115988c68bb9e935ba1c13e1c880757ee163d892c4dc558a3828047302f6f",
   "sketch2vec/pipeline.py": "46f5d04fa8bb8d909ee99ff104e687270b57d35377202fff7834304694e2b2b7",
@@ -14,5 +15,6 @@
   "sketch2vec/text_regions.py": "56cfca287b4660fe48a1053141a6f72d2a2b6cdd2346efeee5ec89a901d577d1",
   "sketch2vec/editing.py": "c19d2c9af55958f6bd84cc03ccd20dfef64375e9e503d1fdd3bbb2ace585aa65",
   "sketch2vec/ellipse_fit.py": "faf119c0e7bd4ac26014fabe0c5951528d530253600f0aa799724f119e078f71",
-  "sketch2vec/batch_join.py": "6522e17c8bc75fd8358df1f791706dfc1ea2eb4b7bea14147344afd966808f97"
+  "sketch2vec/batch_join.py": "6522e17c8bc75fd8358df1f791706dfc1ea2eb4b7bea14147344afd966808f97",
+  "sketch2vec/cad_consolidate.py": "67c153991cfc87f915a47f63305963eb47e484002bc542ceb4109fc071a47d2f"
 }

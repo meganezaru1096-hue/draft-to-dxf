@@ -162,7 +162,7 @@ window.DraftGeometry={
   },
   allowed(path,s){const v=typeof document!=='undefined'?document.getElementById('selectFilter')?.value:'all';return !v||v==='all'||v===s.type;},
   continuations(e,seedKey,{gap,offset,angle}){
-    for(const [value,max] of [[gap,1000],[offset,100],[angle,60]])if(!Number.isFinite(value)||value<=0||value>max)throw Error('候補選択の隙間・横ずれ・角度差は、一括修復の設定を確認してください。');
+    for(const [value,max] of [[gap,1000],[offset,100],[angle,60]])if(!Number.isFinite(value)||value<=0||value>max)throw Error('設定の「ダブルクリック選択」で隙間・許容幅・角度差を確認してください。');
     const selected=new Set(),index=this.spatialIndex(e.doc),[pi,si]=seedKey.split(':').map(Number),path=e.doc?.paths[pi],seed=path?.segments[si];
     if(!index||seed?.type!=='line'||!e.visible(path)||!this.allowed(path,seed))return {selected,limited:false};
     const length=this.length(seed);if(!Number.isFinite(length)||length<1e-6)return {selected,limited:false};
@@ -202,6 +202,98 @@ window.DraftGeometry={
       }
     }
     return {selected,limited:false};
+  },
+  fitCirclePoints(points){
+    const n=points.length;if(n<3)return null;
+    let mx=0,my=0;for(const p of points){mx+=p[0];my+=p[1];}mx/=n;my/=n;
+    let sxx=0,sxy=0,syy=0,sxz=0,syz=0,sz=0;
+    for(const p of points){const x=p[0]-mx,y=p[1]-my,z=x*x+y*y;sxx+=x*x;sxy+=x*y;syy+=y*y;sxz+=x*z;syz+=y*z;sz+=z;}
+    // Solve centered 3x3 normal equations: [2*sxx, 2*sxy, 0; 2*sxy, 2*syy, 0; 0, 0, n] * [a, b, c] = [sxz, syz, sz]
+    const det=sxx*syy-sxy*sxy;if(!Number.isFinite(det)||Math.abs(det)<1e-10)return null;
+    const a=(sxz*syy-syz*sxy)/(2*det),b=(sxx*syz-sxy*sxz)/(2*det),r2=a*a+b*b+sz/n;
+    if(!Number.isFinite(a)||!Number.isFinite(b)||!Number.isFinite(r2)||r2<=1e-6)return null;
+    return {center:[mx+a,my+b],radius:Math.sqrt(r2)};
+  },
+  circleCandidates(e,seedKey,{offset,angle}){
+    for(const [value,max] of [[offset,100],[angle,60]])if(!Number.isFinite(value)||value<=0||value>max)throw Error('設定の「ダブルクリック選択」で許容幅・角度差を確認してください。');
+    const selected=new Set(),index=this.spatialIndex(e.doc),[pi,si]=seedKey.split(':').map(Number),seedPath=e.doc?.paths[pi],seed=seedPath?.segments[si];
+    if(!index||seed?.type!=='arc'||!e.visible(seedPath)||!this.allowed(seedPath,seed))return {selected,limited:false};
+    if(!Number.isFinite(seed.radius)||seed.radius<1e-3||this.length(seed)<1e-6)return {selected,limited:false};
+    const style=seedPath.line_style||'solid',isText=!!seedPath.is_text,isDim=!!seedPath.is_dimension;
+    const cos=Math.cos(angle*Math.PI/180),epsilon=1e-7;
+    const compatible=item=>{
+      const {path,s}=item;
+      if(s.type!=='arc'&&s.type!=='line')return false;
+      if(!e.visible(path)||!this.allowed(path,s))return false;
+      if((path.line_style||'solid')!==style)return false;
+      return !!path.is_text===isText&&!!path.is_dimension===isDim;
+    };
+    const matches=(s,cx,cy,r)=>{
+      const len=this.length(s);if(!Number.isFinite(len)||len<1e-6)return false;
+      if(s.type==='arc'){
+        if(!Number.isFinite(s.radius)||s.radius<1e-3)return false;
+        const sweep=Math.abs(s.extent_deg);
+        if(sweep>=60&&Math.abs(s.radius-r)>Math.max(r*.65,offset*4))return false;
+        const steps=Math.max(4,Math.min(24,Math.ceil(sweep/18)));
+        for(let i=0;i<=steps;i++){
+          const p=this.point(s,i/steps);
+          if(Math.abs(Math.hypot(p[0]-cx,p[1]-cy)-r)>offset+epsilon)return false;
+        }
+        // Reject arcs curving the opposite way (externally tangent fillets).
+        const pm=this.point(s,.5);
+        if((s.center[0]-pm[0])*(cx-pm[0])+(s.center[1]-pm[1])*(cy-pm[1])<=0)return false;
+        for(const t of [0,.5,1]){
+          const p=this.point(s,t),dx=p[0]-cx,dy=p[1]-cy,d=Math.hypot(dx,dy);if(d<1e-6)return false;
+          const a=(s.start_deg+t*s.extent_deg)*Math.PI/180;
+          if(Math.abs((-Math.sin(a))*(-dy/d)+Math.cos(a)*(dx/d))<cos-1e-9)return false;
+        }
+        return true;
+      }
+      // Straight chord fragment on the circle circumference (reject long tangent walls & crossing secants).
+      if(len>r*.95)return false;
+      const p0=s.p0,p1=s.p1,pm=[(p0[0]+p1[0])/2,(p0[1]+p1[1])/2];
+      const r0=Math.hypot(p0[0]-cx,p0[1]-cy),r1=Math.hypot(p1[0]-cx,p1[1]-cy),rm=Math.hypot(pm[0]-cx,pm[1]-cy);
+      if(rm<1e-6)return false;
+      const rExp=Math.sqrt(Math.max(0,r*r-len*len/4));
+      if(Math.abs(r0-r)>offset+epsilon||Math.abs(r1-r)>offset+epsilon)return false;
+      if(Math.abs(rm-rExp)>offset+epsilon||rm>r+offset*.6+epsilon)return false;
+      const rExpQ=Math.sqrt(Math.max(0,r*r-len*len/16));
+      for(const t of [.25,.75]){
+        const pq=this.point(s,t);
+        if(Math.abs(Math.hypot(pq[0]-cx,pq[1]-cy)-rExpQ)>offset+epsilon)return false;
+      }
+      const ux=(p1[0]-p0[0])/len,uy=(p1[1]-p0[1])/len;
+      if(Math.abs(ux*(-(pm[1]-cy)/rm)+uy*((pm[0]-cx)/rm))<cos-1e-9)return false;
+      return true;
+    };
+    const collect=(cx,cy,r,target,foundItems)=>{
+      const pad=r+offset+epsilon;
+      for(const item of index.queryBox([cx-pad,cy-pad,cx+pad,cy+pad])){
+        if(target.has(item.key)||!compatible(item))continue;
+        if(!matches(item.s,cx,cy,r))continue;
+        if(target.size>=5000)return true;
+        target.add(item.key);foundItems.push(item);
+      }
+      return false;
+    };
+    const foundItems=[{key:seedKey,path:seedPath,s:seed}];
+    selected.add(seedKey);
+    let limited=collect(seed.center[0],seed.center[1],seed.radius,selected,foundItems);
+    // Stage 2: refine circle from Pass-1 fragments so short noisy seed arcs still catch the far side.
+    if(!limited&&foundItems.length>=2){
+      const samplePts=[];
+      for(const it of foundItems){
+        const n=Math.max(3,Math.min(24,Math.ceil(this.length(it.s)/10)+1));
+        for(let i=0;i<=n&&samplePts.length<240;i++)samplePts.push(this.point(it.s,i/n));
+      }
+      const fit=this.fitCirclePoints(samplePts);
+      if(fit&&Math.hypot(fit.center[0]-seed.center[0],fit.center[1]-seed.center[1])+Math.abs(fit.radius-seed.radius)<=Math.max(offset*3,seed.radius*.12)){
+        if(foundItems.every(it=>matches(it.s,fit.center[0],fit.center[1],fit.radius))){
+          limited=collect(fit.center[0],fit.center[1],fit.radius,selected,foundItems);
+        }
+      }
+    }
+    return {selected,limited};
   },
   connected(e,gap){
     if(!Number.isFinite(gap)||gap<0||gap>100)throw Error('つながり選択の隙間は0〜100pxです。');

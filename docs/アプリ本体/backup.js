@@ -51,7 +51,7 @@ window.DraftBackup={
     this.render(e);
     if(!e.doc||!e.dirty){clearTimeout(this.timer);this.timer=null;this.last=null;return;}
     if(e.busy){clearTimeout(this.timer);this.timer=null;return;}
-    const fingerprint=[e.doc.paths,e.calibration,e.protection,e.baseline,document.getElementById('dpi').value];
+    const fingerprint=[e.doc.paths,e.doc.texts,e.calibration,e.protection,e.baseline,document.getElementById('dpi').value];
     if(this.last&&fingerprint.every((v,i)=>v===this.last[i]))return;
     this.last=fingerprint;clearTimeout(this.timer);this.timer=setTimeout(()=>this.flush(e),1200);
   },

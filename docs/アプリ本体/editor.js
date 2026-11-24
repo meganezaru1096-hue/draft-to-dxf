@@ -22,8 +22,9 @@ window.DraftEditor = class {
     DraftEndpoint.reset(this);
     DraftExtend.reset(this);this.stopBrush();this.cyclePick=null;this.hoverKey=null;this.moveSnap=null;
     DraftCut.reset(this);
+    window.DraftBridgeProposals?.reset(this);
     this.drawPoints=[];this.drawHover=null;
-    this.doc={width:r.width,height:r.height,paths:DraftPaths.normalize(r.paths)};this.name=name;this.dpi=dpi;
+    this.pendingTexts=null;this.doc={width:r.width,height:r.height,paths:DraftPaths.normalize(r.paths),texts:window.DraftTexts?DraftTexts.validate(r.texts):[]};this.baselineTexts=structuredClone(r.baselineTexts||this.doc.texts);this.name=name;this.dpi=dpi;
     this.undo=this.redo=false;this.dirty=dirty;this.selected.clear();this.anchors.clear();this.editSeq=0;
     if(background&&background===this.backgroundData&&this.background){
       // Reuse already decoded background image when identical.
@@ -38,9 +39,9 @@ window.DraftEditor = class {
     this.drag=null;this.pendingMove=null;this.comparing=false;this.pendingPreview=null;this.regionBox=null;
     this.lastRequest=null;this.arcRef=null;this.pendingRotationMeta=null;this.hoverKey=null;this.moveSnap=null;
     this.stopBrush();this.cyclePick=null;
-    DraftEndpoint.reset(this);DraftExtend.reset(this);DraftCut.reset(this);
+    DraftEndpoint.reset(this);DraftExtend.reset(this);DraftCut.reset(this);window.DraftBridgeProposals?.reset(this);
     this.drawPoints=[];this.drawHover=null;
-    this.doc={width:p.width,height:p.height,paths:DraftPaths.normalize(paths)};
+    this.doc={width:p.width,height:p.height,paths:DraftPaths.normalize(paths),texts:window.DraftTexts?DraftTexts.validate(p.texts):[]};this.baselineTexts=structuredClone(p.baselineTexts||this.doc.texts);
     this.name=p.name;this.dpi=p.dpi;
     this.backgroundTurns=p.backgroundTurns??0;this.baselineTurns=p.baselineTurns??0;
     this.baseline=structuredClone(DraftPaths.normalize(p.baselinePaths||paths));
@@ -60,8 +61,9 @@ window.DraftEditor = class {
   acceptEdit(response){
     const rotated=DraftWorkflow.accepted(this,response);
     this.pendingMove=null;this.stopBrush();this.cyclePick=null;this.hoverKey=null;this.moveSnap=null;
-    DraftCut.reset(this);DraftEndpoint.reset(this);DraftExtend.reset(this);
+    DraftCut.reset(this);DraftEndpoint.reset(this);DraftExtend.reset(this);window.DraftBridgeProposals?.reset(this);
     this.doc.paths=DraftPaths.normalize(response.paths);
+    if(this.pendingTexts){this.doc.texts=this.pendingTexts;this.pendingTexts=null;}
     this.doc._spatialCache=null;
     this.undo=response.undo;this.redo=response.redo;
     this.selected=new Set((response.selected||[]).map(ref=>ref.join(':')));
@@ -87,7 +89,7 @@ window.DraftEditor = class {
   update(){
     const compare=document.getElementById('compareBefore');compare.disabled=!!this.processing||!!this.pendingPreview||!this.doc;compare.textContent=this.comparing?'編集後に戻る':'修正前を比較';compare.setAttribute('aria-pressed',String(!!this.comparing));compare.classList.toggle('active-tool',!!this.comparing);
     document.getElementById('comparisonState').textContent=this.comparing?`修正前：${this.baselineLabel}（閲覧のみ）`:'編集後を表示';
-    for(const id of ['input','convert','dpi','noise','pdfPage','pdfDpi'])document.getElementById(id).disabled=this.busy||!window.probeState.ready;
+    for(const id of ['input','convert','dpi','noise','pdfPage','pdfDpi','textMode'])document.getElementById(id).disabled=this.busy||!window.probeState.ready;
     for(const id of ['mode','tolerance'])document.getElementById(id).disabled=this.busy||!this.doc;
     DraftMeasure.update(this);
     DraftDraw.update(this);
@@ -97,6 +99,8 @@ window.DraftEditor = class {
     DraftInspect.update(this);
     DraftWorkflow.update(this);
     document.getElementById('selection').textContent=`選択 ${this.selected.size} 要素`;
+    window.DraftTextTools?.update(this);
+    window.DraftBridgeProposals?.update(this);
     document.getElementById('savedState').textContent=this.doc?(this.dirty?'未保存':this.saveRequested?'保存先を確認':'変更なし'):'';
     const count=this.doc?this.doc.paths.reduce((sum,p)=>sum+p.segments.length,0):0;
     document.getElementById('elementCount').textContent=this.comparing?`修正前 ${this.baseline.reduce((n,p)=>n+p.segments.length,0)} ／ 編集後 ${count} 要素`:`全 ${count} 要素`;
@@ -254,6 +258,7 @@ window.DraftEditor = class {
       }
       c.lineCap='butt';c.setLineDash([]);c.restore();
     }
+    window.DraftTexts?.draw(this,c);
     if(!this.comparing){
       DraftMeasure.draw(this,c);
       DraftDraw.draw(this,c);
@@ -262,6 +267,7 @@ window.DraftEditor = class {
       DraftCut.draw(this,c);
       if(!this.drag?.move?.started&&!this.pendingMove)DraftInspect.draw(this,c);
       DraftWorkflow.draw(this,c);
+      window.DraftBridgeProposals?.draw(this,c);
       if(window.DraftWorkbench)DraftWorkbench.draw(this,c);
       if(this.drag?.move?.started&&this.moveSnap){
         DraftGeometry.drawSnapMarker(c,this.moveSnap.point,this.moveSnap.kind,v.scale);
@@ -358,17 +364,26 @@ window.DraftEditor = class {
     if(!this.doc||this.busy||this.mode!=='select'||DraftSettings.isOpen)return;
     const point=this.world(screenPoint),key=this.nearestKeyAt(point);if(!key)return;
     const [pi,si]=key.split(':').map(Number),seed=this.doc.paths[pi].segments[si];
-    if(seed.type!=='line'){document.getElementById('status').textContent='途切れの候補選択は、直線をダブルクリックしてください。';return;}
+    if(seed.type!=='line'&&seed.type!=='arc'){document.getElementById('status').textContent='候補選択は、直線または円弧をダブルクリックしてください。';return;}
     try{
-      const options=Object.fromEntries([['gap','repairGap'],['offset','repairOffset'],['angle','repairAngle']].map(([name,id])=>[name,Number(document.getElementById(id).value)]));
-      const result=DraftGeometry.continuations(this,key,options);
+      const options=Object.fromEntries([['gap','doubleClickGap'],['offset','doubleClickWidth'],['angle','doubleClickAngle']].map(([name,id])=>[name,Number(document.getElementById(id).value)]));
+      const isArc=seed.type==='arc';
+      const result=isArc?DraftGeometry.circleCandidates(this,key,options):DraftGeometry.continuations(this,key,options);
       if(!result.selected.size)return;
       if(!add){this.selected.clear();this.anchors.clear();}
       for(const candidate of result.selected)this.selected.add(candidate);
       this.anchors.set(key,point);this.stopBrush();this.cyclePick=null;this.hoverKey=null;this.moveSnap=null;
       this.update();this.draw();
       const count=result.selected.size-1;
-      document.getElementById('status').textContent=count?`延長上の途切れを${count}本追加選択（候補${result.selected.size}本）。図形は未変更です。「統合」または「一括修復」で修正できます。${result.limited?'候補が5000本を超えるため、許容値を下げて絞り込んでください。':''}`:`延長上に候補は見つかりませんでした。線は1本選択しています。必要に応じて「統合の強さ」を上げてください。`;
+      if(isArc){
+        document.getElementById('status').textContent=count
+          ?`同一円周の円統合候補を${count}本追加選択（候補${result.selected.size}本）。図形は未変更です。「円・円弧統合」で統合できます。${result.limited?'候補が5000本を超えるため、許容値を下げて絞り込んでください。':''}`
+          :(DraftGeometry.closed(seed)
+            ?'この円はすでに閉じています（1本選択）。途切れた円弧や直線をダブルクリックすると統合候補を選択できます。'
+            :'同一円周の円統合候補は見つかりませんでした。円弧は1本選択しています。「設定 → ダブルクリック選択」で許容幅・角度差を調整できます。');
+      }else{
+        document.getElementById('status').textContent=count?`延長上の途切れを${count}本追加選択（候補${result.selected.size}本）。図形は未変更です。「統合」または「一括修復」で修正できます。${result.limited?'候補が5000本を超えるため、許容値を下げて絞り込んでください。':''}`:`延長上に候補は見つかりませんでした。線は1本選択しています。「設定 → ダブルクリック選択」で隙間・許容幅・角度差を調整できます。`;
+      }
     }catch(error){document.getElementById('status').textContent=error.message;}
   }
   paintSelection(from,to,subtract=false){
@@ -402,6 +417,7 @@ window.DraftEditor = class {
     if(this.mode==='measure'){if(Math.hypot(end[0]-start[0],end[1]-start[1])<4)DraftMeasure.pick(this,this.world(end));return;}
     const prior=[...this.selected];
     const click=Math.hypot(end[0]-start[0],end[1]-start[1])<4;
+    if(click&&!add&&!subtract&&!cycle&&window.DraftBridgeProposals?.pick(this,this.world(end)))return;
     if(!add&&!subtract&&!(cycle&&click)){this.selected.clear();this.anchors.clear();}
     const a=this.world(start),b=this.world(end),box=[Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[0],b[0]),Math.max(a[1],b[1])];
     const tol=7/this.view.scale;
@@ -461,7 +477,7 @@ window.DraftEditor = class {
     this.setBusy(true);
     this.send({kind:'edit',action,refs:[...this.selected].map(key=>key.split(':').map(Number)),anchors:Object.fromEntries(this.anchors),tolerance,relaxed:action==='mergeArcs',width:this.doc.width,height:this.doc.height,...reference});
   }
-  project(){return {format:'draft-to-dxf-project',version:1,width:this.doc.width,height:this.doc.height,dpi:Number(document.getElementById('dpi').value),name:this.name,paths:this.doc.paths,background:this.backgroundData,backgroundTurns:this.backgroundTurns,baselineTurns:this.baselineTurns,calibration:this.calibration,protection:this.protection,baselinePaths:this.baseline,baselineLabel:this.baselineLabel};}
+  project(){return {format:'draft-to-dxf-project',version:1,width:this.doc.width,height:this.doc.height,dpi:Number(document.getElementById('dpi').value),name:this.name,paths:this.doc.paths,texts:this.doc.texts||[],baselineTexts:this.baselineTexts||[],background:this.backgroundData,backgroundTurns:this.backgroundTurns,baselineTurns:this.baselineTurns,calibration:this.calibration,protection:this.protection,baselinePaths:this.baseline,baselineLabel:this.baselineLabel};}
   attach(){
     const canvas=this.canvas;
     canvas.addEventListener('contextmenu',e=>e.preventDefault());
@@ -557,6 +573,7 @@ window.DraftEditor = class {
       if(wasMoving){/* Cancel only the uncommitted movement; keep selection. */}
       else if(this.comparing){document.getElementById('compareBefore').click();}
       else if(this.pendingPreview){DraftWorkflow.cancel(this);}
+      else if(window.DraftBridgeProposals?.active()){DraftBridgeProposals.reset(this);}
       else if(this.drawPoints.length){DraftDraw.cancel(this);}
       else if(this.cutDraft){DraftCut.reset(this);}
       else if(this.endpointDraft){DraftEndpoint.reset(this);}

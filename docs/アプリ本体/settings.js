@@ -22,13 +22,15 @@
   ];
   const sections=[
     ['editing','線の修正・保護',['tolerance','repairGap','repairOffset','repairAngle','connectedGap','autoProtect','showProtection']],
+    ['doubleClick','ダブルクリック選択',['doubleClickGap','doubleClickWidth','doubleClickAngle']],
     ['measurement','縮尺設定',['calibrationMethod']],
     ['snapping','吸着',['drawSnap','endpointSnap','cutSnap','measureSnap','snapMidpoint','snapCenter']],
     ['inspection','点検の判定基準',['shortThreshold','gapThreshold','overlapTolerance','isolationDistance','inspectGaps','inspectJunctions','inspectContinuity','inspectOverlap','inspectIsolated']]
   ];
   const controls=sections.flatMap(s=>s[2]);
+  const doubleClickLegacyFields=[['doubleClickGap','repairGap'],['doubleClickWidth','repairOffset'],['doubleClickAngle','repairAngle']];
   // Keep operation parameters and drawing dimensions separate from preferences.
-  const savedControls=new Set([...controls,'noise','pdfDpi','pdfInputMode','showOriginal','opacity','drawAxis','boxSelection']);
+  const savedControls=new Set([...controls,'noise','pdfDpi','pdfInputMode','textMode','showOriginal','opacity','drawAxis','boxSelection']);
   const defaults=Object.fromEntries([...savedControls].map(id=>[id,$(id).type==='checkbox'?$(id).checked:$(id).value]));
   const defaultKeys=Object.fromEntries(actions.map(([id,,key])=>[id,key]));
   const storageKey='draft-to-dxf-settings-v1';let keys={...defaultKeys},values={...defaults},storageError='',restoredRecord=null,savedAt=0,revision=0,applying=false;
@@ -46,6 +48,9 @@
     for(const id of savedControls){const value=data?.values?.[id]??(id==='pdfDpi'?legacyPdfDpi:undefined);if(validValue(id,value))values[id]=value;}
     // Upgrade only the complete old default preset. Keep custom values intact.
     if((data?.repairDefaultsVersion||1)<2&&['repairGap','repairOffset','repairAngle'].every((id,i)=>Number(values[id])===[8,1,2][i])){values.repairGap='20';values.repairOffset='3';values.repairAngle='6';}
+    // The old double-click tool shared these three repair values. Copy them
+    // only once, when its own saved field is absent, then keep it independent.
+    for(const [id,legacy] of doubleClickLegacyFields)if(!Object.hasOwn(data?.values||{},id))values[id]=values[legacy];
     applying=true;try{for(const id of savedControls){const n=$(id);if(n.type==='checkbox')n.checked=values[id];else n.value=values[id];if(notify)n.dispatchEvent(new Event('change',{bubbles:true}));}}finally{applying=false;}
   }
   applyRecord(restoredRecord);
@@ -121,6 +126,7 @@
     watchPreference(control,n);
   }const reset=make('button','settings-reset','この項目を標準に戻す');reset.id='reset-settings-'+id;reset.onclick=()=>{for(const control of ids){const n=$(control);if(n.disabled)continue;if(n.type==='checkbox')n.checked=defaults[control];else n.value=defaults[control];n.dispatchEvent(new Event('change',{bubbles:true}));}};panel.append(reset);}
   panelMap.get('editing').append(make('p','note','直線の許容ずれは統合・整列に使用します。単位pxは元画像上の距離です。円・円弧統合は許容ずれの数値制限を使用しません。保護枠が非表示でも保護は有効です。'));
+  panelMap.get('doubleClick').append(make('p','note','直線・円弧をダブルクリックしたときの候補選択専用です。許容幅は最初の直線・円周から両側それぞれのずれ幅、隙間は直線の端どうしの距離です。pxは表示倍率に関係なく元画像上の距離を表します。値を大きくすると遠い線・ずれた線も選びやすくなります。一括修復の「統合の強さ」は変更しません。'));
   panelMap.get('snapping').append(make('p','note','描画・端点移動・区間削除・測定の各操作に適用します。中点と円の中心は描画・端点移動で使用します。'));
   panelMap.get('measurement').append(make('p','note','実寸合わせを「2点を指定」または「選択した直線」から選びます。直線方式は1本選択し、その実際の長さをmmで入力します。設定方式は保存されますが、図面の実寸倍率は適用ボタンを押すまで変わりません。円弧は対象外です。'));
   panelMap.get('inspection').append(make('p','note','変更後は作業画面の「確認候補を検出」で再検出してください。基準の単位は元画像上のpxです。'));
@@ -131,6 +137,7 @@
     if(file.size>100000)throw Error('設定ファイルは100KB以下で指定してください。');const data=JSON.parse(await file.text());
     const importedKeys=completeKeys(data?.keys,(data?.keyDefaultsVersion||1)<2),importedValues={...data?.values};
     if(!Object.hasOwn(importedValues,'calibrationMethod'))importedValues.calibrationMethod=defaults.calibrationMethod;
+    for(const [id,legacy] of doubleClickLegacyFields)if(!Object.hasOwn(importedValues,id))importedValues[id]=validValue(legacy,importedValues[legacy])?importedValues[legacy]:defaults[id];
     for(const id of savedControls)if(!controls.includes(id)&&!Object.hasOwn(importedValues,id))importedValues[id]=values[id];
     if(data?.format!=='draft-to-dxf-settings'||data.version!==1||!data.values||![...savedControls].every(id=>validValue(id,importedValues[id]))||!importedKeys)throw Error('対応していない、不正な値またはキー重複を含む設定ファイルです。');
     // Validate the whole file before changing any preference.

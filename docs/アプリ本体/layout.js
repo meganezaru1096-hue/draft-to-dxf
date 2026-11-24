@@ -64,6 +64,7 @@
   for(const [id,label] of [['weak','弱'],['normal','標準'],['strong','強'],['maximum','最強（大きなずれ）'],['custom','カスタム']])strength.add(new Option(label,id));strength.value='normal';strengthLabel.append(strength);repair.prepend(strengthLabel);
   repair.append(make('p','note','最強は隙間200px・横ずれ50px・角度差45°を許容します。別の線を統合する場合があるため範囲を絞り、結果を確認してください。'));
   for(const [id,label,value,max] of [['repairGap','一括修復：隙間 px',20,1000],['repairOffset','一括修復：横ずれ px',3,100],['repairAngle','一括修復：角度差 °',6,60]]){const l=make('label','',label),n=document.createElement('input');n.id=id;n.type='number';n.min='0.01';n.max=String(max);n.step='0.1';n.value=String(value);l.append(n);repair.append(l);}
+  for(const [id,label,value,max] of [['doubleClickGap','線と線の隙間 px',20,1000],['doubleClickWidth','許容幅（横ずれ）px',3,100],['doubleClickAngle','方向の許容角度 °',6,60]]){const l=make('label','',label),n=document.createElement('input');n.id=id;n.type='number';n.min='0.01';n.max=String(max);n.step='0.1';n.value=String(value);l.append(n);repair.append(l);}
   sidebar.querySelector('#tools-edit .tool-body').append(repair);
   const styleTools=make('div','toolbar'),styleLabel=make('label','','線種'),styleSelect=document.createElement('select');styleSelect.id='lineStyle';
   for(const [value,label] of [['solid','実線 · 紫'],['dashed','破線 · 緑'],['dashdot','一点鎖線 · 橙']])styleSelect.add(new Option(label,value));
@@ -86,7 +87,7 @@
   const helpBody=make('div','tool-body');
   helpBody.append(make('p','note','ショートカットは上部の「設定」で確認・変更できます。入力欄の編集中はツールを切り替えません。Ctrlを含む保存キーは入力欄からも編集データを保存します。'));
   helpBody.append(make('p','note','右ドラッグ、ホイール押し込み、Shift＋ドラッグ、またはスペース＋ドラッグで一時的に移動。Escは作成途中の点を中止、もう一度で選択モードへ戻ります。修正は即反映され、「元に戻す」で取り消せます。'));
-  helpBody.append(make('p','note','選択モードで直線をダブルクリックすると、同じ方向・線種の途切れた直線を両側にたどって選択します。隙間・横ずれ・角度差は「統合の強さ」の値を使用。Ctrl併用で今の選択へ追加します。選択のみで図形は変わりません。確認後に「統合」または「一括修復」を使ってください。'));
+  helpBody.append(make('p','note','選択モードで直線をダブルクリックすると、同じ方向・線種の途切れた直線を両側にたどって選択します。隙間・許容幅・角度差は「設定 → ダブルクリック選択」で変更・自動保存。一括修復の強さとは別の設定です。Ctrl併用で今の選択へ追加します。選択のみで図形は変わりません。確認後に「統合」または「一括修復」を使ってください。'));
   helpBody.append(make('p','note','選択モードでAltを押しながらなぞると線・円弧を追加選択します。マウスを押さなくても使えます。重なった要素はCtrl＋Alt＋クリックで順送り。「延長/短縮」は動かす側の端点、相手の線の順にクリックし、接触位置まで長さを変更します。'));
   for(const text of notes)helpBody.append(make('p','note',text));
   helpBody.append(el('summary').closest('details'),el('log').closest('details'));help.append(helpBody);sidebar.append(help);

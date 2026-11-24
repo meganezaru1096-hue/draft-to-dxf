@@ -72,6 +72,9 @@ window.renderLocalPdf = async (file, pageNumber, dpi=300, {vectors=false,mode=ve
     document.getElementById('pageCount').textContent = '全' + doc.numPages + 'ページ';
     if (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > doc.numPages) throw new Error('ページは1〜' + doc.numPages + 'で指定してください。');
     const page = await doc.getPage(pageNumber);
+    const wantTexts=document.getElementById('textMode')?.value!=='off';
+    let textContent=wantTexts?await page.getTextContent():null;
+    if(textContent&&!DraftTexts.safeNativePdfText(await page.getOperatorList(),lib.OPS))textContent=null;
     const fullViewport=page.getViewport({scale:dpi/72}),fullWidth=Math.ceil(fullViewport.width),fullHeight=Math.ceil(fullViewport.height);
     const rasterTooLarge=fullWidth*fullHeight>40000000||Math.max(fullWidth,fullHeight)>20000;
     const large=fullWidth*fullHeight>24000000||Math.max(fullWidth,fullHeight)>20000;
@@ -110,13 +113,19 @@ window.renderLocalPdf = async (file, pageNumber, dpi=300, {vectors=false,mode=ve
     }
     activePdfRender=page.render({canvasContext:canvas.getContext('2d'),viewport,background:'rgb(255,255,255)'});
     await activePdfRender.promise;
+    let semantic=textContent?DraftTexts.fromPdf(textContent,viewport):{texts:[],rejected:0};
+    if(extracted?.unsafeOverpaint||fallbackReason&&!fallbackReason.startsWith('直接利用できるベクター線がありません'))semantic={texts:[],rejected:semantic.texts.length};
+    canvas.draftTexts=semantic.texts;
     if(method==='hybrid'){
       const remainder=document.createElement('canvas');remainder.width=width;remainder.height=height;
       const nativeOps=new Set(extracted.nativeOps);
-      activePdfRender=page.render({canvasContext:remainder.getContext('2d'),viewport,background:'rgb(255,255,255)',operationsFilter:index=>!nativeOps.has(index)});
+      const textOps=new Set(['showText','showSpacedText','nextLineShowText','nextLineSetSpacingShowText'].map(k=>lib.OPS[k]));
+      const operators=await page.getOperatorList();
+      const skipText=semantic.texts.length>0&&semantic.rejected===0;
+      activePdfRender=page.render({canvasContext:remainder.getContext('2d'),viewport,background:'rgb(255,255,255)',operationsFilter:index=>!nativeOps.has(index)&&!(skipText&&textOps.has(operators.fnArray[index]))});
       await activePdfRender.promise;
       canvas.draftTraceCanvas=remainder;canvas.draftNativePaths=extracted.paths;
-      canvas.draftImportNote='ベクター線を直接保持し、文字・画像・塗りの部分だけ追加抽出';
+      canvas.draftImportNote='ベクター線を直接保持'+(semantic.texts.length?'・文字情報を保持':'')+'し、その他の部分を追加抽出';
     }
     canvas.draftDpi=effectiveDpi;
     canvas.draftTotalPages=doc.numPages;

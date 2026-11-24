@@ -158,4 +158,6 @@ six-1.17.0
 PDF.js 5.7.284: PDFJS-LICENSE.txt
 UTIF 3.1.0: UTIF-LICENSE.txt
 pako 1.0.11: PAKO-LICENSE.txt
+ONNX Runtime Web 1.21.0 (MIT): ONNXRUNTIME-LICENSE.txt
+PP-OCRv6 small ONNX (Apache-2.0): PPOCRV6-APACHE-2.0-LICENSE.txt / PPOCRV6-MODEL-LICENSES.md
 OpenCV compatibility implementation notice: OPENCV-COMPAT-NOTICE.txt

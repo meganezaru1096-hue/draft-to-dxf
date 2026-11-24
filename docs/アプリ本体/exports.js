@@ -16,6 +16,7 @@ window.DraftExport = (() => {
     if(!Number.isFinite(scale)||scale<1e-6||scale>1e6)throw Error('DXFの縮尺が不正です。');
     const w=doc.width*scale,h=doc.height*scale;
     const entityLines=[];
+    const texts=window.DraftTexts?DraftTexts.validate(doc.texts):[];
     const etag=(k,v)=>entityLines.push(String(k),String(v));
     let minX=0,minY=0,maxX=w,maxY=h;
     const track=(mx,my)=>{if(mx<minX)minX=mx;if(mx>maxX)maxX=mx;if(my<minY)minY=my;if(my>maxY)maxY=my;};
@@ -62,10 +63,19 @@ window.DraftExport = (() => {
         if(!circle){etag(50,aStr);etag(51,bStr);}
       }
     }
+    for(const text of texts){
+      const value=text.text.replace(/[\r\n\t]/g,' ');
+      etag(0,'TEXT');etag(8,'TEXT');etag(7,'JP');point([text.x,text.y],10);
+      etag(40,n(text.height*scale));etag(1,value);etag(50,normDeg(-text.angle));
+      const units=[...value].reduce((sum,c)=>sum+(/^[\x00-\x7f]$/.test(c)?.55:1),0);
+      etag(41,n(Math.max(.1,Math.min(10,text.width/Math.max(1,units*text.height)))));
+      for(const p of DraftTexts.corners(text))track(p[0]*scale,h-p[1]*scale);
+    }
     const maxSpan=Math.max(maxX-minX,maxY-minY,w,h);
     const ltscale=maxSpan>1000?Math.max(1,Math.round(maxSpan/420)):1;
     const lines=[],tag=(k,v)=>lines.push(String(k),String(v));
     tag(0,'SECTION');tag(2,'HEADER');tag(9,'$ACADVER');tag(1,'AC1009');
+    if(texts.length){tag(9,'$DWGCODEPAGE');tag(3,'ANSI_932');}
     tag(9,'$INSUNITS');tag(70,4);tag(9,'$MEASUREMENT');tag(70,1);
     tag(9,'$LTSCALE');tag(40,n(ltscale));
     tag(9,'$EXTMIN');tag(10,n(minX));tag(20,n(minY));tag(30,0);
@@ -76,11 +86,13 @@ window.DraftExport = (() => {
     tag(0,'TABLE');tag(2,'LTYPE');tag(70,3);
     for(const [name,parts] of [['CONTINUOUS',[]],['DASHED',[4,-2]],['DASHDOT',[8,-2,.4,-2]]]){tag(0,'LTYPE');tag(2,name);tag(70,0);tag(3,name);tag(72,65);tag(73,parts.length);tag(40,n(parts.reduce((a,b)=>a+Math.abs(b),0)));for(const value of parts)tag(49,value);}
     tag(0,'ENDTAB');
-    tag(0,'TABLE');tag(2,'LAYER');tag(70,2);
-    for(const [name,color] of [['0',7],['GEOMETRY',7]]){tag(0,'LAYER');tag(2,name);tag(70,0);tag(62,color);tag(6,'CONTINUOUS');}
-    tag(0,'ENDTAB');tag(0,'ENDSEC');tag(0,'SECTION');tag(2,'ENTITIES');
+    tag(0,'TABLE');tag(2,'LAYER');tag(70,texts.length?3:2);
+    for(const [name,color] of [['0',7],['GEOMETRY',7],...(texts.length?[['TEXT',5]]:[])]){tag(0,'LAYER');tag(2,name);tag(70,0);tag(62,color);tag(6,'CONTINUOUS');}
+    tag(0,'ENDTAB');
+    if(texts.length){tag(0,'TABLE');tag(2,'STYLE');tag(70,1);tag(0,'STYLE');tag(2,'JP');tag(70,0);tag(40,0);tag(41,1);tag(50,0);tag(71,0);tag(42,2.5);tag(3,'msgothic.ttc');tag(4,'');tag(0,'ENDTAB');}
+    tag(0,'ENDSEC');tag(0,'SECTION');tag(2,'ENTITIES');
     for(let i=0;i<entityLines.length;i++)lines.push(entityLines[i]);
-    tag(0,'ENDSEC');tag(0,'EOF');return new Blob([lines.join('\r\n')+'\r\n'],{type:'application/dxf'});
+    tag(0,'ENDSEC');tag(0,'EOF');const content=lines.join('\r\n')+'\r\n';return new Blob([texts.length?DraftTexts.shiftJis(content):content],{type:'application/dxf'});
   }
   function pdf(doc,dpi) {
     check(doc,dpi);const scale=72/dpi,w=doc.width*scale,h=doc.height*scale;
@@ -119,20 +131,53 @@ window.DraftExport = (() => {
         stream.push(fullCircle?'h S':'S');
       }
     }
+    const texts=window.DraftTexts?DraftTexts.validate(doc.texts):[];
+    const font=window.DraftPdfTextFont;
+    for(const t of texts){
+      const angle=-t.angle*Math.PI/180,c=Math.cos(angle),s=Math.sin(angle),units=[...t.text].reduce((sum,ch)=>sum+(font?.widths[ch.codePointAt(0)]??1000)/1000,0),stretch=t.width/Math.max(1,units*t.height);
+      const hex=[...t.text.replace(/[\r\n\t]/g,' ')].map(ch=>{let h='';for(let i=0;i<ch.length;i++)h+=ch.charCodeAt(i).toString(16).padStart(4,'0');return h;}).join('');
+      stream.push(`0 0 0 rg BT /FJ ${n(t.height*scale)} Tf ${n(c*stretch)} ${n(s*stretch)} ${n(-s)} ${n(c)} ${xy([t.x,t.y])} Tm <${hex}> Tj ET`);
+    }
     const content=stream.join('\n')+'\n';
     const encoder=typeof TextEncoder!=='undefined'?new TextEncoder():null;
     const byteLen=str=>encoder?encoder.encode(str).length:str.length;
     const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${n(w)} ${n(h)}] /Resources << >> /Contents 4 0 R >>`,
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${n(w)} ${n(h)}] /Resources << ${texts.length?'/Font << /FJ 5 0 R >>':''} >> /Contents 4 0 R >>`,
       `<< /Length ${byteLen(content)} >>\nstream\n${content}endstream`];
+    if(texts.length){
+      if(!font)throw Error('PDF文字フォントが見つかりません。');
+      const used=[...new Set(texts.flatMap(t=>[...t.text].map(ch=>ch.codePointAt(0))))].filter(code=>code<=65535).sort((a,b)=>a-b);
+      const widths=used.map(code=>`${code} [${font.widths[code]??1000}]`).join(' ');
+      const toUnicode='/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def /CMapName /DraftUnicode def /CMapType 2 def 1 begincodespacerange <0000> <ffff> endcodespacerange 1 beginbfrange <0000> <ffff> <0000> endbfrange endcmap CMapName currentdict /CMap defineresource pop end end';
+      const binaryStream=(hex,extra='')=>`<< /Length ${hex.length+1} /Filter [/ASCIIHexDecode /FlateDecode] ${extra} >>\nstream\n${hex}>\nendstream`;
+      objects.push('<< /Type /Font /Subtype /Type0 /BaseFont /DraftDrawingJapanese /Encoding /Identity-H /DescendantFonts [6 0 R] /ToUnicode 10 0 R >>',
+        `<< /Type /Font /Subtype /CIDFontType2 /BaseFont /DraftDrawingJapanese /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 7 0 R /CIDToGIDMap 9 0 R /DW 1000 /W [${widths}] >>`,
+        `<< /Type /FontDescriptor /FontName /DraftDrawingJapanese /Flags 4 /FontBBox [${font.bbox.join(' ')}] /ItalicAngle 0 /Ascent ${font.ascent} /Descent ${font.descent} /CapHeight 733 /StemV 80 /FontFile2 8 0 R >>`,
+        binaryStream(font.fontHex,`/Length1 ${font.fontLength}`),binaryStream(font.gidHex),
+        `<< /Length ${toUnicode.length} >>\nstream\n${toUnicode}\nendstream`);
+    }
     let file='%PDF-1.4\n',offsets=[0],cursor=byteLen(file);
     objects.forEach((o,i)=>{offsets.push(cursor);const chunk=`${i+1} 0 obj\n${o}\nendobj\n`;file+=chunk;cursor+=byteLen(chunk);});
     const start=cursor;
-    file+=`xref\n0 5\n0000000000 65535 f \n`;
+    file+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
     for(const offset of offsets.slice(1))file+=`${String(offset).padStart(10,'0')} 00000 n \n`;
-    file+=`trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n${start}\n%%EOF\n`;
+    file+=`trailer\n<< /Size ${objects.length+1} /Root 1 0 R >>\nstartxref\n${start}\n%%EOF\n`;
     return new Blob([file],{type:'application/pdf'});
   }
+  let pdfFontPromise=null;
+  function ensurePdfFont(){
+    if(window.DraftPdfTextFont)return Promise.resolve(window.DraftPdfTextFont);
+    if(pdfFontPromise)return pdfFontPromise;
+    const src=window.draftPdfTextFontSrc||document.querySelector('meta[name="draft-pdf-text-font"]')?.content||'pdf-text-font.js';
+    pdfFontPromise=new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src=src;
+      s.onload=()=>window.DraftPdfTextFont?resolve(window.DraftPdfTextFont):reject(Error('PDF文字フォントが見つかりません。'));
+      s.onerror=()=>reject(Error('PDF文字フォントの読み込みに失敗しました。'));
+      document.head.appendChild(s);
+    }).catch(error=>{pdfFontPromise=null;throw error;});
+    return pdfFontPromise;
+  }
   function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
-  return {dxf,pdf,download};
+  return {dxf,pdf,ensurePdfFont,download};
 })();

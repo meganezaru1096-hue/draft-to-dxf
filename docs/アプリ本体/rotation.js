@@ -11,10 +11,11 @@ window.DraftRotation={
     const measurePoints=e.measurePoints.map(rotate);
     if(measurePoints.some(p=>p.some(v=>!Number.isFinite(v)||Math.abs(v)>1e7)))throw Error('回転後の測定点が範囲外です。');
     const protection=e.protection.map(b=>this.box(b,w,h,d).map(v=>Math.max(-1e7,Math.min(1e7,v))));
-    return {width:h,height:w,backgroundTurns:this.turns(e.backgroundTurns+d),baselineTurns:this.turns(e.baselineTurns+d),calibration:calibration(e.calibration),scaleHistory:e.scaleHistory.map(calibration),measurePoints,protection,regionBox:e.regionBox?this.box(e.regionBox,w,h,d):null};
+    return {width:h,height:w,texts:window.DraftTexts?DraftTexts.rotate(e.doc.texts||[],w,h,d):[],backgroundTurns:this.turns(e.backgroundTurns+d),baselineTurns:this.turns(e.baselineTurns+d),calibration:calibration(e.calibration),scaleHistory:e.scaleHistory.map(calibration),measurePoints,protection,regionBox:e.regionBox?this.box(e.regionBox,w,h,d):null};
   },
   apply(e,meta){
     e.doc.width=meta.width;e.doc.height=meta.height;
+    if(meta.texts)e.doc.texts=meta.texts;
     for(const key of ['backgroundTurns','baselineTurns','calibration','scaleHistory','measurePoints','protection','regionBox'])e[key]=meta[key];
     e.mode='select';document.getElementById('mode').value='select';
   },
