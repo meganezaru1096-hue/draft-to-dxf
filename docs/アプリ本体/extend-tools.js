@@ -40,12 +40,33 @@ window.DraftExtend={
     if([...DraftGeometry.bounds(segment),...(segment.type==='arc'?[segment.start_deg,segment.extent_deg]:[])].some(v=>!Number.isFinite(v)||Math.abs(v)>1e7))throw Error('延長後の座標が範囲外です。');
     return {segment,point};
   },
-  findSource(e,p){let best=10/e.view.scale,found=null;e.doc.paths.forEach((path,pi)=>{if(!e.visible(path))return;path.segments.forEach((s,si)=>{if(!DraftGeometry.allowed(path,s)||(e.extendScope&&e.extendScope!==`${pi}:${si}`)||DraftGeometry.closed(s))return;for(const endpoint of [0,1]){const q=DraftGeometry.point(s,endpoint),d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d<best){best=d;found={ref:[pi,si],endpoint,segment:s};}}});});return found;},
-  findTarget(e,p){let best=8/e.view.scale,found=null;e.doc.paths.forEach((path,pi)=>{if(!e.visible(path))return;path.segments.forEach((s,si)=>{if(e.extendDraft.ref[0]===pi&&e.extendDraft.ref[1]===si)return;const d=e.distance(s,p);if(d<best){best=d;found={ref:[pi,si],segment:s};}});});if(found){try{Object.assign(found,this.candidate(e.extendDraft.segment,found.segment,e.extendDraft.endpoint));found.targetSegment=e.doc.paths[found.ref[0]].segments[found.ref[1]];found.valid=true;}catch(error){found.error=error.message;found.valid=false;}}return found;},
+  findSource(e,p){
+    let best=10/e.view.scale,found=null;
+    const index=DraftGeometry.spatialIndex(e.doc),candidates=index?index.queryBox([p[0]-best,p[1]-best,p[0]+best,p[1]+best]):null;
+    const visit=(path,pi,s,si)=>{
+      if(!e.visible(path)||!DraftGeometry.allowed(path,s)||(e.extendScope&&e.extendScope!==`${pi}:${si}`)||DraftGeometry.closed(s))return;
+      for(const endpoint of [0,1]){const q=DraftGeometry.point(s,endpoint),d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d<best){best=d;found={ref:[pi,si],endpoint,segment:s};}}
+    };
+    if(candidates){for(const it of candidates)visit(it.path,it.pi,it.s,it.si);}
+    else e.doc.paths.forEach((path,pi)=>path.segments.forEach((s,si)=>visit(path,pi,s,si)));
+    return found;
+  },
+  findTarget(e,p){
+    let best=8/e.view.scale,found=null;
+    const index=DraftGeometry.spatialIndex(e.doc),candidates=index?index.queryBox([p[0]-best,p[1]-best,p[0]+best,p[1]+best]):null;
+    const visit=(path,pi,s,si)=>{
+      if(!e.visible(path)||(e.extendDraft.ref[0]===pi&&e.extendDraft.ref[1]===si))return;
+      const d=e.distance(s,p);if(d<best){best=d;found={ref:[pi,si],segment:s};}
+    };
+    if(candidates){for(const it of candidates)visit(it.path,it.pi,it.s,it.si);}
+    else e.doc.paths.forEach((path,pi)=>path.segments.forEach((s,si)=>visit(path,pi,s,si)));
+    if(found){try{Object.assign(found,this.candidate(e.extendDraft.segment,found.segment,e.extendDraft.endpoint));found.targetSegment=e.doc.paths[found.ref[0]].segments[found.ref[1]];found.valid=true;}catch(error){found.error=error.message;found.valid=false;}}
+    return found;
+  },
   hover(e,p){if(!e.extendDraft){e.extendHover=this.findSource(e,p);return;}e.extendTarget=this.findTarget(e,p);const t=e.extendTarget;document.getElementById('extendHint').textContent=t?(t.valid?(t.segment.type==='arc'?`円弧を ${Math.abs(t.segment.extent_deg-e.extendDraft.segment.extent_deg).toFixed(1)}° 延長`:`${((DraftGeometry.length(t.segment)-DraftGeometry.length(e.extendDraft.segment))*DraftWorkflow.scale(e)).toFixed(2)} mm 延長`)+'：相手の線をクリックで反映（Escで中止）':t.error):'②ぶつけたい相手の線・円弧・円の上へ移動してクリックしてください。';},
   pick(e,p){if(!e.extendDraft){const d=this.findSource(e,p);if(!d){document.getElementById('extendHint').textContent='延長する直線・円弧の端点を指定してください。一周の円は相手としてのみ使えます。';return;}e.extendDraft=d;e.extendHover=null;this.update(e);e.draw();return;}const t=this.findTarget(e,p);if(!t?.valid){document.getElementById('extendHint').textContent=t?.error||'相手の線・円弧・円の上をクリックしてください。';e.extendTarget=t;e.draw();return;}const d=e.extendDraft;this.reset(e);e.send({kind:'edit',action:'extendTo',refs:[d.ref],target:t.ref,endpoint:d.endpoint});},
   draw(e,c){if(e.mode!=='extend')return;const d=e.extendDraft,scale=e.view.scale,source=d||e.extendHover;if(!source)return;const origin=DraftGeometry.point(source.segment,source.endpoint);c.strokeStyle='#148443';c.lineWidth=2/scale;c.beginPath();c.arc(...origin,5/scale,0,Math.PI*2);c.stroke();const t=e.extendTarget;if(!d||!t?.valid)return;
     const stroke=s=>{c.beginPath();if(s.type==='line'){c.moveTo(...s.p0);c.lineTo(...s.p1);}else c.arc(...s.center,s.radius,s.start_deg*Math.PI/180,(s.start_deg+s.extent_deg)*Math.PI/180,s.extent_deg<0);c.stroke();};
-    c.strokeStyle='#148443';c.lineWidth=2/scale;stroke(t.targetSegment);c.strokeStyle='#d05b00';c.lineWidth=2.5/scale;c.setLineDash([5/scale,3/scale]);if(d.segment.type==='line')stroke({type:'line',p0:origin,p1:t.point});else{const delta=t.segment.extent_deg-d.segment.extent_deg;stroke({...d.segment,start_deg:d.endpoint===1?d.segment.start_deg+d.segment.extent_deg:t.segment.start_deg,extent_deg:delta});}c.setLineDash([]);c.strokeStyle='#148443';c.beginPath();c.arc(...t.point,5/scale,0,Math.PI*2);c.stroke();
+    c.strokeStyle='#0f7a3e';c.lineWidth=2/scale;stroke(t.targetSegment);c.strokeStyle='#006d77';c.lineWidth=2.5/scale;c.setLineDash([5/scale,3/scale]);if(d.segment.type==='line')stroke({type:'line',p0:origin,p1:t.point});else{const delta=t.segment.extent_deg-d.segment.extent_deg;stroke({...d.segment,start_deg:d.endpoint===1?d.segment.start_deg+d.segment.extent_deg:t.segment.start_deg,extent_deg:delta});}c.setLineDash([]);DraftGeometry.drawSnapMarker(c,t.point,'交点吸着',scale);
   }
 };

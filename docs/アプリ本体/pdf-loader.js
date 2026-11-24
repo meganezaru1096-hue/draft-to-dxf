@@ -3,10 +3,16 @@ let pdfLibrary;
 let pdfWorkerUrl;
 let activePdfTask=null,activePdfRender=null,pdfReadGeneration=0;
 window.cancelPdfRead=()=>{pdfReadGeneration++;activePdfRender?.cancel();activePdfTask?.destroy();activePdfTask=null;activePdfRender=null;};
+function decodeBase64Bytes(data) {
+  if (typeof Uint8Array.fromBase64 === 'function') return Uint8Array.fromBase64(data);
+  const bin = atob(data), out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
 function pdfBytes(name) {
-  const data = window.pdfAssets[name];
+  const data = window.pdfAssets?.[name];
   if (!data) throw new Error('同梱PDFデータがありません: ' + name);
-  return Uint8Array.from(atob(data), c => c.charCodeAt(0));
+  return decodeBase64Bytes(data);
 }
 class LocalPdfBinaryData {
   async fetch({kind, filename}) {
@@ -15,14 +21,30 @@ class LocalPdfBinaryData {
     return pdfBytes(folder + '/' + filename);
   }
 }
+async function ensurePdfAssets() {
+  if (window.pdfAssets) return;
+  const src = window.draftPdfAssetsSrc || document.querySelector('meta[name="draft-pdf-assets"]')?.content || 'pdf-assets.js';
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('PDF読込モジュールの読み込みに失敗しました。'));
+    document.head.appendChild(s);
+  });
+}
 async function getPdfLibrary() {
   if (!pdfLibrary) pdfLibrary = (async () => {
+    await ensurePdfAssets();
     const moduleUrl = URL.createObjectURL(new Blob([pdfBytes('pdf.mjs')], {type:'text/javascript'}));
-    const lib = await import(moduleUrl);
-    pdfWorkerUrl = URL.createObjectURL(new Blob([pdfBytes('pdf.worker.mjs')], {type:'text/javascript'}));
-    lib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-    return lib;
-  })();
+    try {
+      const lib = await import(moduleUrl);
+      pdfWorkerUrl = URL.createObjectURL(new Blob([pdfBytes('pdf.worker.mjs')], {type:'text/javascript'}));
+      lib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+      return lib;
+    } finally {
+      URL.revokeObjectURL(moduleUrl);
+    }
+  })().catch(error => { pdfLibrary = null; throw error; });
   return pdfLibrary;
 }
 window.renderLocalPdf = async (file, pageNumber, dpi=300, {vectors=false,mode=vectors?'vector':'raster'}={}) => {
@@ -36,10 +58,17 @@ window.renderLocalPdf = async (file, pageNumber, dpi=300, {vectors=false,mode=ve
     cMapUrl:'local/',cMapPacked:true,standardFontDataUrl:'local/',wasmUrl:'local/',
     useSystemFonts:false,isEvalSupported:false,isImageDecoderSupported:false,stopAtErrors:true});
   // Do not display or execute embedded PDF JavaScript; password UI is deliberately unsupported.
-  task.onPassword = () => { task.destroy(); };
+  let passwordRejected = false;
+  task.onPassword = () => { passwordRejected = true; task.destroy(); };
   activePdfTask=task;
   try {
-    const doc = await task.promise;
+    let doc;
+    try { doc = await task.promise; }
+    catch (err) {
+      if (passwordRejected || err?.name === 'PasswordException') throw new Error('パスワード保護されたPDFには対応していません。');
+      throw err;
+    }
+    if(generation!==pdfReadGeneration)throw Error('PDF読込を中止しました。');
     document.getElementById('pageCount').textContent = '全' + doc.numPages + 'ページ';
     if (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > doc.numPages) throw new Error('ページは1〜' + doc.numPages + 'で指定してください。');
     const page = await doc.getPage(pageNumber);
@@ -90,7 +119,8 @@ window.renderLocalPdf = async (file, pageNumber, dpi=300, {vectors=false,mode=ve
       canvas.draftImportNote='ベクター線を直接保持し、文字・画像・塗りの部分だけ追加抽出';
     }
     canvas.draftDpi=effectiveDpi;
+    canvas.draftTotalPages=doc.numPages;
     window.lastPdfRender = {version:lib.version,page:pageNumber,pages:doc.numPages,width,height,dpi:effectiveDpi,requestedDpi:dpi,method,fallbackReason};
     return canvas;
-  } finally { if(activePdfTask===task){activePdfTask=null;activePdfRender=null;}await task.destroy(); }
+  } finally { if(activePdfTask===task){activePdfTask=null;activePdfRender=null;}try{await task.destroy();}catch(_){} }
 };

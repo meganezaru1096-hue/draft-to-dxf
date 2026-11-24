@@ -7,10 +7,20 @@ window.DraftWorkflow={
     document.getElementById('previewRegion').onclick=()=>this.region(e);
     document.getElementById('protectSelected').onclick=()=>{
       if(e.busy||!e.selected.size)return;
+      window.DraftHistory?.begin(e,'保護範囲の追加');
       const boxes=[...e.selected].map(key=>{const [pi,si]=key.split(':').map(Number);return this.padded(e.bounds(e.doc.paths[pi].segments[si]));});
-      e.protection=this.limit([...e.protection,...boxes]);e.dirty=true;e.update();e.draw();
+      e.protection=this.limit([...e.protection,...boxes]);e.dirty=true;e.editSeq=(e.editSeq||0)+1;
+      window.DraftHistory?.commit(e);
+      e.update();e.draw();
     };
-    document.getElementById('clearProtection').onclick=()=>{if(e.busy||!e.protection.length)return;if(!confirm('再変換から守る保護範囲をすべて解除しますか？図形自体は変更しません。'))return;e.protection=[];e.dirty=true;e.update();e.draw();};
+    document.getElementById('clearProtection').onclick=()=>{
+      if(e.busy||!e.protection.length)return;
+      window.DraftHistory?.begin(e,'保護範囲を解除');
+      e.protection=[];e.dirty=true;e.editSeq=(e.editSeq||0)+1;
+      window.DraftHistory?.commit(e);
+      e.update();e.draw();
+      document.getElementById('status').textContent='保護範囲をすべて解除しました（「元に戻す」で復帰できます）。';
+    };
     document.getElementById('showProtection').onchange=()=>e.draw();
     document.getElementById('readArc').onclick=()=>this.readArc(e);
     document.getElementById('previewArc').onclick=()=>this.arc(e);
@@ -36,8 +46,13 @@ window.DraftWorkflow={
     if(unique.length<=2000)return unique;
     const total=[Infinity,Infinity,-Infinity,-Infinity];for(const b of unique){total[0]=Math.min(total[0],b[0]);total[1]=Math.min(total[1],b[1]);total[2]=Math.max(total[2],b[2]);total[3]=Math.max(total[3],b[3]);}return [total];
   },
+  segmentKey(s){
+    if(s.type==='line')return `L:${s.p0[0]},${s.p0[1]},${s.p1[0]},${s.p1[1]}`;
+    if(s.type==='arc')return `A:${s.center[0]},${s.center[1]},${s.radius},${s.start_deg},${s.extent_deg}`;
+    return `E:${s.center[0]},${s.center[1]},${s.rx},${s.ry},${s.rotation}`;
+  },
   difference(before,after){
-    const flatten=paths=>paths.flatMap((p,pi)=>p.segments.map((s,si)=>({ref:[pi,si],s,key:JSON.stringify(s)})));
+    const flatten=paths=>{const out=[];for(let pi=0;pi<paths.length;pi++){const segs=paths[pi].segments;for(let si=0;si<segs.length;si++)out.push({ref:[pi,si],s:segs[si],key:this.segmentKey(segs[si])});}return out;};
     const old=flatten(before),fresh=flatten(after),counts=new Map(),remaining=new Map();
     for(const x of fresh)counts.set(x.key,(counts.get(x.key)||0)+1);
     const removed=old.filter(x=>{const n=counts.get(x.key)||0;if(n){counts.set(x.key,n-1);return false;}return true;});
@@ -100,7 +115,7 @@ window.DraftWorkflow={
       const b=e.regionBox,pad=64,x=Math.max(0,b[0]-pad),y=Math.max(0,b[1]-pad),w=Math.min(e.doc.width,b[2]+pad)-x,h=Math.min(e.doc.height,b[3]+pad)-y;
       const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');ctx.translate(-x,-y);DraftRotation.drawBackground(e,ctx);
       const pixels=ctx.getImageData(0,0,w,h).data.buffer;
-      e.send({kind:'region',width:w,height:h,pixels,box:b,offset:[x,y],protection:e.protection,noise:Number(document.getElementById('regionNoise').value)});
+      e.send({kind:'region',width:w,height:h,pixels,box:b,offset:[x,y],protection:e.protection,noise:Number(document.getElementById('regionNoise').value),dpi:Number(document.getElementById('dpi').value)||e.dpi||300});
       document.getElementById('status').textContent='指定範囲を再変換しています…';
     }catch(error){document.getElementById('regionHint').textContent=error.message;}
   },

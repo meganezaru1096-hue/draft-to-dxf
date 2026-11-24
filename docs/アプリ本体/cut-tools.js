@@ -14,7 +14,7 @@ window.DraftCut={
     const guide=document.createElement('p');guide.className='note cut-guide';guide.textContent='分割：線の途中を1回クリック。形は変わらず、別々に選べる2本になります。円は2か所を指定します。区間削除：消す区間の両端を順にクリック。マウス移動中の赤い部分が削除されます。';document.getElementById('cutHint').after(guide);
     e.canvas.addEventListener('pointermove',ev=>{
       if(!e.doc||e.busy||!this.active(e))return;
-      const p=e.world(e.position(ev));if(!e.cutDraft){e.cutCandidate=this.find(e,p);if(e.cutCandidate)e.cutCandidate.t=this.position(e,e.cutCandidate,p);}else e.cutHover=e.distance(e.cutDraft.segment,p)<=10/e.view.scale?this.position(e,e.cutDraft,p):null;e.draw();
+      const p=e.world(e.position(ev));if(!e.cutDraft){e.cutCandidate=this.find(e,p);if(e.cutCandidate)e.cutCandidate.t=this.position(e,e.cutCandidate,p);}else e.cutHover=e.distance(e.cutDraft.segment,p)<=10/e.view.scale?this.position(e,e.cutDraft,p):null;e.scheduleDraw?e.scheduleDraw():e.draw();
     });
     e.canvas.addEventListener('keydown',ev=>{if(!this.active(e))return;if(ev.key==='Escape'||DraftSettings.is(ev,'delete')||(DraftSettings.is(ev,'undo')&&e.cutDraft)){ev.preventDefault();ev.stopImmediatePropagation();this.reset(e);this.update(e);e.draw();}});
   },
@@ -35,7 +35,13 @@ window.DraftCut={
       let nearest=null,best=10/e.view.scale;
       const consider=q=>{const dist=Math.hypot(q[0]-p[0],q[1]-p[1]);if(dist<best){nearest=q;best=dist;}};
       if(!this.full(d.segment))[this.point(d.segment,0),this.point(d.segment,1)].forEach(consider);
-      e.doc.paths.forEach((path,pi)=>{if(!e.visible(path))return;path.segments.forEach((other,si)=>{if(d.ref&&pi===d.ref[0]&&si===d.ref[1])return;DraftGeometry.intersections(d.segment,other).forEach(consider);});});
+      const sb=DraftGeometry.bounds(d.segment),pad=best+2;
+      const qbox=[Math.max(sb[0]-pad,p[0]-pad),Math.max(sb[1]-pad,p[1]-pad),Math.min(sb[2]+pad,p[0]+pad),Math.min(sb[3]+pad,p[1]+pad)];
+      const index=DraftGeometry.spatialIndex(e.doc);
+      const candidates=index?index.queryBox(qbox):null;
+      const visit=(path,pi,other,si)=>{if(!e.visible(path)||(d.ref&&pi===d.ref[0]&&si===d.ref[1]))return;DraftGeometry.intersections(d.segment,other).forEach(consider);};
+      if(candidates){for(const it of candidates)visit(it.path,it.pi,it.s,it.si);}
+      else e.doc.paths.forEach((path,pi)=>path.segments.forEach((other,si)=>visit(path,pi,other,si)));
       if(nearest){p=nearest;}
     }
     if(d.segment.type==='arc'){
@@ -51,7 +57,17 @@ window.DraftCut={
     const project=q=>Math.max(0,Math.min(1,((q[0]-s.p0[0])*u[0]+(q[1]-s.p0[1])*u[1])/length2));
     return project(p);
   },
-  find(e,p){let best=10/e.view.scale,found=null;e.doc.paths.forEach((path,pi)=>{if(!e.visible(path))return;path.segments.forEach((s,si)=>{if(s.type==='ellipse'||(e.cutScope&&e.cutScope!==`${pi}:${si}`)||DraftGeometry.length(s)<1e-6)return;const dist=e.distance(s,p);if(dist<best){best=dist;found={ref:[pi,si],segment:s};}});});return found;},
+  find(e,p){
+    let best=10/e.view.scale,found=null;
+    const index=DraftGeometry.spatialIndex(e.doc),candidates=index?index.queryBox([p[0]-best,p[1]-best,p[0]+best,p[1]+best]):null;
+    const visit=(path,pi,s,si)=>{
+      if(!e.visible(path)||s.type==='ellipse'||(e.cutScope&&e.cutScope!==`${pi}:${si}`)||DraftGeometry.length(s)<1e-6)return;
+      const dist=e.distance(s,p);if(dist<best){best=dist;found={ref:[pi,si],segment:s};}
+    };
+    if(candidates){for(const it of candidates)visit(it.path,it.pi,it.s,it.si);}
+    else e.doc.paths.forEach((path,pi)=>path.segments.forEach((s,si)=>visit(path,pi,s,si)));
+    return found;
+  },
   pick(e,p){
     let d=e.cutDraft;
     if(!d){d=this.find(e,p);
@@ -70,8 +86,8 @@ window.DraftCut={
       return;
     }
     const scale=e.view.scale,first=this.point(d.segment,d.first),second=d.second??e.cutHover;
-    c.strokeStyle='#d05b00';c.lineWidth=1.5/scale;c.setLineDash([4/scale,3/scale]);this.stroke(c,d.segment,0,1);c.setLineDash([]);
-    c.strokeStyle='#d05b00';c.lineWidth=2/scale;c.beginPath();c.arc(...first,5/scale,0,Math.PI*2);c.stroke();
+    c.strokeStyle='#006d77';c.lineWidth=1.5/scale;c.setLineDash([4/scale,3/scale]);this.stroke(c,d.segment,0,1);c.setLineDash([]);
+    c.strokeStyle='#006d77';c.lineWidth=2/scale;c.beginPath();c.arc(...first,5/scale,0,Math.PI*2);c.stroke();
     if(second!=null){const end=this.point(d.segment,second);if(e.mode==='trimLine'){let a=Math.min(d.first,second),b=Math.max(d.first,second);const short=document.getElementById('circleTrimSide').value==='short';if(this.full(d.segment)&&((b-a<=.5)!==short)){[a,b]=[b,a+1];}c.strokeStyle='#dc2626';c.lineWidth=4/scale;this.stroke(c,d.segment,a,b);}c.beginPath();c.arc(...end,5/scale,0,Math.PI*2);c.stroke();}
   }
 };

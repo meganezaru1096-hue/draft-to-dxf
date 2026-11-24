@@ -42,13 +42,17 @@ window.DraftMeasure = {
   },
   dismiss(editor){const visible=!!editor.measureVisible;editor.measureVisible=false;return visible;},
   commit(editor,value){this.dismiss(editor);editor.scaleHistory.push(editor.calibration);if(editor.scaleHistory.length>30)editor.scaleHistory.shift();editor.calibration=value;editor.dirty=true;editor.update();editor.draw();},
-  reset(editor,value){editor.calibration=this.validate(value);editor.scaleHistory=[];editor.measurePoints=[];editor.measureVisible=false;},
+  reset(editor,value){editor.calibration=this.validate(value);editor.scaleHistory=[];editor.measurePoints=[];editor.measureVisible=false;editor.measureHover=null;},
+  hover(editor,point){
+    if(editor.mode!=='measure'||editor.measurePoints.length>=2){editor.measureHover=null;return;}
+    editor.measureHover=document.getElementById('measureSnap').checked?DraftGeometry.snap(editor,point):{point:point.slice(),kind:'自由位置'};
+  },
   pick(editor,point){
     if(document.getElementById('measureSnap').checked){
       point=DraftGeometry.snap(editor,point).point;
     }
     if(editor.measurePoints.length===2)editor.measurePoints=[];
-    editor.measurePoints.push(point);editor.measureVisible=true;editor.update();editor.draw();
+    editor.measurePoints.push(point);editor.measureVisible=true;editor.measureHover=null;editor.update();editor.draw();
   },
   update(editor){
     const ready=!!editor.doc&&!editor.busy,points=editor.measurePoints||[],cal=editor.calibration;
@@ -72,7 +76,19 @@ window.DraftMeasure = {
     document.getElementById('scaleState').textContent=cal?`DXF：実寸設定済み（1 px = ${cal.mmPerPixel.toPrecision(7)} mm）`:'DXF：実寸未設定（用紙上の寸法）';
   },
   draw(editor,c){
-    const pts=editor.measurePoints||[];if(editor.mode!=='measure'||!editor.measureVisible||!pts.length)return;
+    if(editor.mode!=='measure')return;
+    const pts=editor.measurePoints||[];
+    if(editor.measureHover&&pts.length<2&&editor.pointerInside){
+      DraftGeometry.drawSnapMarker(c,editor.measureHover.point,editor.measureHover.kind,editor.view.scale);
+      if(pts.length===1){
+        const scale=editor.calibration?.mmPerPixel??25.4/Number(document.getElementById('dpi').value);
+        if(Number.isFinite(scale)&&scale>0){
+          const d=Math.hypot(editor.measureHover.point[0]-pts[0][0],editor.measureHover.point[1]-pts[0][1])*scale;
+          DraftGeometry.drawHud(c,editor.measureHover.point,`${d.toFixed(2)} mm`,editor.view.scale);
+        }
+      }
+    }
+    if(!editor.measureVisible||!pts.length)return;
     c.save();
     c.strokeStyle='#148443';c.fillStyle='#148443';c.lineWidth=2/editor.view.scale;
     if(pts.length===2){c.beginPath();c.moveTo(...pts[0]);c.lineTo(...pts[1]);c.stroke();}

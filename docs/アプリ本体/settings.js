@@ -7,7 +7,9 @@
     ['drawLine','直線を描く','L','tool-drawLine'],['drawCircle','円を描く','C','tool-drawCircle'],['drawArc','円弧を描く','A','tool-drawArc'],
     ['endpoint','端点を動かす','E','tool-endpoint'],['splitLine','線を分割','X','tool-splitLine'],['trimLine','区間削除','T','tool-trimLine'],
     ['extend','相手の線まで延長','','tool-extend'],
-    ['copySelected','選択を複写','','copySelected'],['offsetSelected','オフセット複写','','offsetSelected'],['trimTo','相手まで切り詰め','','trimTo'],
+    ['copySelected','選択を複写','','copySelected'],['moveSelected','選択を数値移動','','moveSelected'],['offsetSelected','オフセット複写','','offsetSelected'],['trimTo','相手まで切り詰め','','tool-trimTo'],
+    ['filletSelected','角をR丸め','','filletSelected'],['rotateSelected','選択を回転','','rotateSelected'],['mirrorH','選択を左右反転','','mirrorH'],['mirrorV','選択を上下反転','','mirrorV'],
+    ['toggleOriginal','下絵の表示切替','','showOriginal'],
     ['measure','測定','M','tool-measure'],['region','範囲を指定','R','tool-region'],
     ['fit','全体表示','F','fit'],['fitSelected','選択を拡大','Shift+F','fitSelected'],
     ['saveProject','編集データ保存','Ctrl+S','saveProject'],['undo','元に戻す','Ctrl+Z','undo'],['redo','やり直す','Ctrl+Y','redo'],
@@ -26,12 +28,13 @@
   ];
   const controls=sections.flatMap(s=>s[2]);
   // Keep operation parameters and drawing dimensions separate from preferences.
-  const savedControls=new Set([...controls,'noise','regionNoise','pdfDpi','pdfInputMode','showOriginal','opacity','drawAxis','boxSelection']);
+  const savedControls=new Set([...controls,'noise','regionNoise','pdfDpi','pdfInputMode','showOriginal','opacity','drawAxis','boxSelection','lineWeight']);
   const defaults=Object.fromEntries([...savedControls].map(id=>[id,$(id).type==='checkbox'?$(id).checked:$(id).value]));
   const defaultKeys=Object.fromEntries(actions.map(([id,,key])=>[id,key]));
   const storageKey='draft-to-dxf-settings-v1';let keys={...defaultKeys},values={...defaults},storageError='',restoredRecord=null,savedAt=0,revision=0,applying=false;
   const validKey=key=>typeof key==='string'&&(key===''||/^(Ctrl\+)?(Shift\+)?([A-Z0-9]|Delete|F[2-4]|F[6-9]|F10)$/.test(key))&&!/^Ctrl\+(Shift\+)?([WTNRLOPQ]|F4|F6)$/.test(key)&&key!=='Ctrl+Shift+Delete';
-  function completeKeys(raw,migrate=false){if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;const next={};for(const [id] of actions){const value=['extend','copySelected','offsetSelected','trimTo','mergeEllipse'].includes(id)&&!Object.hasOwn(raw,id)?'':raw[id];if(!validKey(value))return null;next[id]=value;}const bound=Object.values(next).filter(Boolean);if(new Set(bound).size!==bound.length)return null;if(migrate&&next.delete==='Delete'&&!Object.entries(next).some(([id,key])=>id!=='delete'&&key==='D'))next.delete='D';return next;}
+  const optionalActions=new Set(['extend','copySelected','moveSelected','offsetSelected','trimTo','mergeEllipse','filletSelected','rotateSelected','mirrorH','mirrorV','toggleOriginal']);
+  function completeKeys(raw,migrate=false){if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;const next={};for(const [id] of actions){const value=optionalActions.has(id)&&!Object.hasOwn(raw,id)?'':raw[id];if(!validKey(value))return null;next[id]=value;}const bound=Object.values(next).filter(Boolean);if(new Set(bound).size!==bound.length)return null;if(migrate&&next.delete==='Delete'&&!Object.entries(next).some(([id,key])=>id!=='delete'&&key==='D'))next.delete='D';return next;}
   function validValue(id,value){const n=$(id);if(!n)return false;if(n.tagName==='SELECT')return typeof value==='string'&&[...n.options].some(o=>o.value===value);return n.type==='checkbox'?typeof value==='boolean':typeof value==='string'&&value.trim()!==''&&Number.isFinite(Number(value))&&(!n.min||Number(value)>=Number(n.min))&&(!n.max||Number(value)<=Number(n.max));}
   const isRecord=data=>data?.version===1&&data.values&&typeof data.values==='object'&&!Array.isArray(data.values);
   const timestamp=data=>Number.isSafeInteger(data?.savedAt)&&data.savedAt>=0?Math.min(data.savedAt,Date.now()+86400000):0;
@@ -148,8 +151,8 @@
     update(e){for(const id of controls)$(id).disabled=e.busy;},
     get isOpen(){return dialog.open;},key:id=>keys[id]||'',
     is:(event,id)=>!event.isComposing&&combo(event)===keys[id]&&!!keys[id],
-    action(event){if(event.isComposing||event.altKey)return null;const key=combo(event),found=actions.find(([id])=>keys[id]&&keys[id]===key);if(found)return found[0];if(key==='Ctrl+Shift+Z'&&keys.undo==='Ctrl+Z'&&keys.redo==='Ctrl+Y')return 'redo';return null;},
-    run(id,e){if(e.busy&&!['saveProject','exportDxf','exportPdf'].includes(id)||!e.doc)return;if(id==='selectAll'&&e.mode!=='select')e.setMode('select');const target=actions.find(a=>a[0]===id)?.[3],n=$(target);if(n&&!n.disabled)n.click();},
+    action(event){if(event.isComposing||event.altKey)return null;const key=combo(event),found=actions.find(([id])=>keys[id]&&keys[id]===key);if(found)return found[0];if(key==='Ctrl+Shift+Z'&&keys.undo==='Ctrl+Z'&&keys.redo==='Ctrl+Y')return 'redo';if((key==='Delete'||key==='Backspace')&&!actions.some(([, , ,])=>false)&&!Object.values(keys).includes(key))return 'delete';return null;},
+    run(id,e){if(e.busy&&!['saveProject','exportDxf','exportPdf','toggleOriginal'].includes(id)||!e.doc)return;if(id==='selectAll'&&e.mode!=='select')e.setMode('select');const target=actions.find(a=>a[0]===id)?.[3],n=$(target);if(n&&!n.disabled)n.click();},
     open(tab){showTab(tab||'shortcuts');open.click();}
   };
   for(const id of savedControls)if(!controls.includes(id))watchPreference(id);

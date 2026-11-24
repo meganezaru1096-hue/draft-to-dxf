@@ -7,6 +7,10 @@ window.DraftDraw = {
       document.getElementById(mode).onclick=()=>editor.setMode(mode);
     }
     document.getElementById('cancelDraw').onclick=()=>this.cancel(editor);
+    const contLabel=document.createElement('label'),contInput=document.createElement('input');
+    contInput.id='drawContinuous';contInput.type='checkbox';
+    contLabel.append(contInput,'連続で直線を描く');
+    document.getElementById('drawExact')?.closest('label')?.before(contLabel);
     editor.canvas.addEventListener('keydown',event=>{
       if(!this.active(editor))return;
       if(event.key==='Escape'||DraftSettings.is(event,'delete')||(DraftSettings.is(event,'undo')&&editor.drawPoints.length)){
@@ -14,16 +18,21 @@ window.DraftDraw = {
       }
     });
   },
-  cancel(editor){editor.drawPoints=[];editor.drawHover=null;this.update(editor);editor.draw();},
+  cancel(editor){editor.drawPoints=[];editor.drawHover=null;editor.drawPendingStart=null;this.update(editor);editor.draw();},
   update(editor){
     for(const id of ['drawLine','drawCircle','drawArc','drawSnap'])document.getElementById(id).disabled=editor.busy||!editor.doc;
+    const cont=document.getElementById('drawContinuous');if(cont)cont.disabled=editor.busy||!editor.doc;
     document.getElementById('cancelDraw').disabled=!editor.drawPoints?.length||editor.busy;
+    if(!editor.busy&&editor.drawPendingStart&&editor.mode==='drawLine'&&!editor.drawPoints.length){
+      editor.drawPoints=[editor.drawPendingStart];editor.drawPendingStart=null;
+    }
     const n=editor.drawPoints?.length||0;
     const messages={drawLine:['始点をクリック','終点をクリックして確定'],drawCircle:['中心をクリック','円周上の点をクリックして確定'],drawArc:['始点をクリック','円弧が通る中間点をクリック','終点をクリックして確定']};
     document.getElementById('drawHint').textContent=this.active(editor)?messages[editor.mode][n]+'（Escで中止）':'直線：2点 ／ 円：中心・円周 ／ 円弧：始点・中間点・終点';
   },
   snap(editor,point){
-    const hit=document.getElementById('drawSnap').checked?DraftGeometry.snap(editor,point):{point:point.slice(),kind:'自由位置'};
+    const origin=editor.mode==='drawLine'&&editor.drawPoints.length?editor.drawPoints[0]:null;
+    const hit=document.getElementById('drawSnap').checked?DraftGeometry.snap(editor,point,null,{origin}):{point:point.slice(),kind:'自由位置'};
     let result=hit.point;editor.drawSnapKind=hit.kind;
     if(editor.mode==='drawLine'&&editor.drawPoints.length){
       const start=editor.drawPoints[0],axis=document.getElementById('drawAxis').value;
@@ -33,7 +42,10 @@ window.DraftDraw = {
         if(Number.isFinite(length)&&length>0&&Number.isFinite(angle)&&Number.isFinite(scale)&&scale>0){const r=length/scale;result=[start[0]+r*Math.cos(angle),start[1]-r*Math.sin(angle)];editor.drawSnapKind='長さ・角度の数値指定';}
       }else if(axis==='horizontal'||axis==='orthogonal'&&Math.abs(result[0]-start[0])>=Math.abs(result[1]-start[1]))result[1]=start[1];
       else if(axis==='vertical'||axis==='orthogonal')result[0]=start[0];
-      if(!document.getElementById('drawExact').checked&&axis!=='free')editor.drawSnapKind=axis==='horizontal'?'水平拘束':axis==='vertical'?'垂直拘束':'直交拘束';
+      if(!document.getElementById('drawExact').checked&&axis!=='free'){
+        const axisLabel=axis==='horizontal'?'水平拘束':axis==='vertical'?'垂直拘束':'直交拘束';
+        editor.drawSnapKind=hit.kind!=='自由位置'?`${axisLabel}＋${hit.kind}`:axisLabel;
+      }
     }
     return result;
   },
@@ -68,23 +80,40 @@ window.DraftDraw = {
     try{
       const segment=this.segment(editor.mode,points),closed=editor.mode==='drawCircle';
       const style=document.getElementById('lineStyle').value;
-      this.cancel(editor);editor.setBusy(true);editor.send({kind:'edit',action:'add',paths:[{closed,segments:[segment],...(style==='solid'?{}:{line_style:style})}]});
+      const continueChain=editor.mode==='drawLine'&&document.getElementById('drawContinuous')?.checked;
+      const nextStart=continueChain?points[1].slice():null;
+      this.cancel(editor);editor.drawPendingStart=nextStart;
+      editor.setBusy(true);editor.send({kind:'edit',action:'add',paths:[{closed,segments:[segment],...(style==='solid'?{}:{line_style:style})}]});
     }catch(error){document.getElementById('drawHint').textContent=error.message+' Escで描き直せます。';}
   },
   draw(editor,c){
     if(!this.active(editor))return;
     const pts=editor.drawPoints,hover=editor.drawHover,scale=editor.view.scale;
-    c.strokeStyle='#d05b00';c.fillStyle='#d05b00';c.lineWidth=2/scale;
+    c.save();
+    c.strokeStyle='#006d77';c.fillStyle='#006d77';c.lineWidth=2/scale;
     for(const p of pts){c.beginPath();c.arc(...p,4/scale,0,Math.PI*2);c.stroke();}
-    if(!hover)return;
-    c.strokeRect(hover[0]-4/scale,hover[1]-4/scale,8/scale,8/scale);
-    if(!pts.length)return;
-    c.setLineDash([5/scale,3/scale]);c.beginPath();
+    if(!hover){c.restore();return;}
+    DraftGeometry.drawSnapMarker(c,hover,editor.drawSnapKind,scale);
+    if(!pts.length){
+      if(editor.drawSnapKind&&editor.drawSnapKind!=='自由位置')DraftGeometry.drawHud(c,hover,editor.drawSnapKind,scale);
+      c.restore();return;
+    }
+    c.strokeStyle='#006d77';c.lineWidth=2/scale;c.setLineDash([5/scale,3/scale]);c.beginPath();
     try{
       if(editor.mode==='drawArc'&&pts.length===1){c.moveTo(...pts[0]);c.lineTo(...hover);}
       else{const s=this.segment(editor.mode,[...pts,hover]);if(s.type==='line'){c.moveTo(...s.p0);c.lineTo(...s.p1);}else c.arc(...s.center,s.radius,s.start_deg*Math.PI/180,(s.start_deg+s.extent_deg)*Math.PI/180,s.extent_deg<0);}
       c.stroke();
+      const mm=DraftWorkflow.scale(editor);
+      if(Number.isFinite(mm)&&mm>0){
+        if(editor.mode==='drawLine'){
+          const dx=hover[0]-pts[0][0],dy=hover[1]-pts[0][1],len=Math.hypot(dx,dy)*mm,ang=-Math.atan2(dy,dx)*180/Math.PI;
+          DraftGeometry.drawHud(c,hover,`${len.toFixed(2)} mm · ${ang.toFixed(1)}°`,scale);
+        }else if(editor.mode==='drawCircle'){
+          const r=Math.hypot(hover[0]-pts[0][0],hover[1]-pts[0][1])*mm;
+          DraftGeometry.drawHud(c,hover,`R ${r.toFixed(2)} mm (Ø ${(2*r).toFixed(2)})`,scale);
+        }
+      }
     }catch(_){/* Invalid candidates are not committed or rendered as geometry. */}
-    c.setLineDash([]);
+    c.setLineDash([]);c.restore();
   }
 };

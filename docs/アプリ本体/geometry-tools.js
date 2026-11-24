@@ -1,10 +1,15 @@
-// Shared finite-segment geometry for selection and snapping. Image coordinates: y points down.
+// Shared finite-segment geometry for selection, spatial queries, and snapping. Image coordinates: y points down.
 window.DraftGeometry={
   mod(a){return (a%360+360)%360;},
   closed(s){return s.type==='ellipse'||s.type==='arc'&&Math.abs(s.extent_deg)>=359.999999;},
   ellipseLocal(s,p){const c=Math.cos(s.rotation),n=Math.sin(s.rotation),x=p[0]-s.center[0],y=p[1]-s.center[1];return [c*x+n*y,-n*x+c*y];},
   ellipseWorld(s,x,y){const c=Math.cos(s.rotation),n=Math.sin(s.rotation);return [s.center[0]+c*x-n*y,s.center[1]+n*x+c*y];},
-  point(s,t){if(s.type==='line')return s.p0.map((v,i)=>v+t*(s.p1[i]-v));if(s.type==='ellipse'){const a=t*2*Math.PI;return this.ellipseWorld(s,s.rx*Math.cos(a),s.ry*Math.sin(a));}const a=(s.start_deg+t*s.extent_deg)*Math.PI/180;return [s.center[0]+s.radius*Math.cos(a),s.center[1]+s.radius*Math.sin(a)];},
+  point(s,t){
+    if(s.type==='line')return s.p0.map((v,i)=>v+t*(s.p1[i]-v));
+    if(s.type==='ellipse'){const a=t*2*Math.PI;return this.ellipseWorld(s,s.rx*Math.cos(a),s.ry*Math.sin(a));}
+    const a=(s.start_deg+t*s.extent_deg)*Math.PI/180;
+    return [s.center[0]+s.radius*Math.cos(a),s.center[1]+s.radius*Math.sin(a)];
+  },
   trace(c,s,a=0,b=1){
     if(s.type==='ellipse'){c.ellipse(...s.center,s.rx,s.ry,s.rotation,a*2*Math.PI,b*2*Math.PI);return;}
     if(s.type==='arc'){c.arc(...s.center,s.radius,(s.start_deg+a*s.extent_deg)*Math.PI/180,(s.start_deg+b*s.extent_deg)*Math.PI/180,s.extent_deg<0);return;}
@@ -16,7 +21,43 @@ window.DraftGeometry={
   },
   bounds(s){
     if(s.type==='ellipse'){const c=Math.cos(s.rotation),n=Math.sin(s.rotation),x=Math.hypot(s.rx*c,s.ry*n),y=Math.hypot(s.rx*n,s.ry*c);return [s.center[0]-x,s.center[1]-y,s.center[0]+x,s.center[1]+y];}
-    const pts=[this.point(s,0),this.point(s,1)];if(s.type==='arc')for(const a of [0,90,180,270]){const p=[s.center[0]+s.radius*Math.cos(a*Math.PI/180),s.center[1]+s.radius*Math.sin(a*Math.PI/180)];if(this.onArc(s,p))pts.push(p);}return [Math.min(...pts.map(p=>p[0])),Math.min(...pts.map(p=>p[1])),Math.max(...pts.map(p=>p[0])),Math.max(...pts.map(p=>p[1]))];
+    const pts=[this.point(s,0),this.point(s,1)];
+    if(s.type==='arc')for(const a of [0,90,180,270]){const p=[s.center[0]+s.radius*Math.cos(a*Math.PI/180),s.center[1]+s.radius*Math.sin(a*Math.PI/180)];if(this.onArc(s,p))pts.push(p);}
+    return [Math.min(...pts.map(p=>p[0])),Math.min(...pts.map(p=>p[1])),Math.max(...pts.map(p=>p[0])),Math.max(...pts.map(p=>p[1]))];
+  },
+  spatialIndex(doc){
+    if(!doc?.paths)return null;
+    if(doc._spatialCache?.paths===doc.paths)return doc._spatialCache;
+    const w=Math.max(1,doc.width||1000),h=Math.max(1,doc.height||1000);
+    const cellSize=Math.max(24,Math.min(256,Math.hypot(w,h)/48));
+    const items=[],cells=new Map(),large=[];
+    for(let pi=0;pi<doc.paths.length;pi++){
+      const path=doc.paths[pi];
+      for(let si=0;si<path.segments.length;si++){
+        const s=path.segments[si],b=this.bounds(s);
+        const item={index:items.length,pi,si,key:`${pi}:${si}`,path,s,bounds:b};
+        items.push(item);
+        const x0=Math.floor(b[0]/cellSize),y0=Math.floor(b[1]/cellSize),x1=Math.floor(b[2]/cellSize),y1=Math.floor(b[3]/cellSize);
+        if((x1-x0+1)*(y1-y0+1)>64){large.push(item);continue;}
+        for(let cx=x0;cx<=x1;cx++)for(let cy=y0;cy<=y1;cy++){
+          const ck=`${cx},${cy}`;let list=cells.get(ck);if(!list){list=[];cells.set(ck,list);}list.push(item);
+        }
+      }
+    }
+    const cache={
+      paths:doc.paths,items,cells,large,cellSize,_stamp:0,
+      queryBox(box){
+        const x0=Math.floor(box[0]/cellSize),y0=Math.floor(box[1]/cellSize),x1=Math.floor(box[2]/cellSize),y1=Math.floor(box[3]/cellSize);
+        if((x1-x0+1)*(y1-y0+1)>512)return items.filter(it=>!(it.bounds[0]>box[2]||it.bounds[2]<box[0]||it.bounds[1]>box[3]||it.bounds[3]<box[1]));
+        const stamp=++this._stamp,out=[];
+        const visit=it=>{if(it._s===stamp)return;it._s=stamp;const b=it.bounds;if(b[0]>box[2]||b[2]<box[0]||b[1]>box[3]||b[3]<box[1])return;out.push(it);};
+        for(let i=0;i<large.length;i++)visit(large[i]);
+        for(let cx=x0;cx<=x1;cx++)for(let cy=y0;cy<=y1;cy++){const list=cells.get(`${cx},${cy}`);if(list)for(let i=0;i<list.length;i++)visit(list[i]);}
+        return out;
+      }
+    };
+    doc._spatialCache=cache;
+    return cache;
   },
   nearestEllipse(s,p){
     const [px,py]=this.ellipseLocal(s,p),x=Math.abs(px),y=Math.abs(py),{rx,ry}=s,diff=(rx-ry)*(rx+ry);
@@ -119,14 +160,17 @@ window.DraftGeometry={
     const corners=[[b[0],b[1]],[b[2],b[1]],[b[2],b[3]],[b[0],b[3]]];
     return corners.some((p,i)=>this.intersections(s,{type:'line',p0:p,p1:corners[(i+1)%4]}).length);
   },
-  allowed(path,s){const v=document.getElementById('selectFilter').value;return v==='all'||v===s.type;},
+  allowed(path,s){const v=typeof document!=='undefined'?document.getElementById('selectFilter')?.value:'all';return !v||v==='all'||v===s.type;},
   connected(e,gap){
     if(!Number.isFinite(gap)||gap<0||gap>100)throw Error('つながり選択の隙間は0〜100pxです。');
     const radius=Math.max(gap,1e-6),items=[],grid=new Map(),ends=[];
+    const index=this.spatialIndex(e.doc);
+    const keyToIndex=new Map();
     e.doc.paths.forEach((path,pi)=>{if(!e.visible(path))return;path.segments.forEach((s,si)=>{
-      const index=items.length,item={s,key:`${pi}:${si}`,allowed:this.allowed(path,s),bounds:this.bounds(s)};items.push(item);
+      const idx=items.length,key=`${pi}:${si}`,item={s,key,allowed:this.allowed(path,s),bounds:this.bounds(s)};
+      items.push(item);keyToIndex.set(key,idx);
       if(this.closed(s)||this.length(s)<1e-6)return;
-      for(const t of [0,1]){const p=this.point(s,t),id=ends.length;ends.push({index,t,p});const key=`${Math.floor(p[0]/radius)},${Math.floor(p[1]/radius)}`;if(!grid.has(key))grid.set(key,[]);grid.get(key).push(id);}
+      for(const t of [0,1]){const p=this.point(s,t),id=ends.length;ends.push({index:idx,t,p});const ck=`${Math.floor(p[0]/radius)},${Math.floor(p[1]/radius)}`;if(!grid.has(ck))grid.set(ck,[]);grid.get(ck).push(id);}
     });});
     if(items.length>10000)throw Error('つながり選択は表示中の1万要素まで対応しています。範囲選択をご利用ください。');
     const choices=new Map();
@@ -143,7 +187,16 @@ window.DraftGeometry={
       if(d>1e-5){const u=this.outward(sa,a.t),v=this.outward(sb,b.t),w=[(b.p[0]-a.p[0])/d,(b.p[1]-a.p[1])/d];if(u[0]*w[0]+u[1]*w[1]<.7||v[0]*w[0]+v[1]*w[1]>-.7)continue;}
       // A third shape near the join (including an unselectable one) is a branch.
       const epsilon=Math.max(1e-5,gap),mid=a.p.map((v,k)=>(v+b.p[k])/2);
-      const blocked=items.some((item,k)=>{if(k===a.index||k===b.index)return false;const box=item.bounds;if(box[0]>Math.max(a.p[0],b.p[0])+epsilon||box[2]<Math.min(a.p[0],b.p[0])-epsilon||box[1]>Math.max(a.p[1],b.p[1])+epsilon||box[3]<Math.min(a.p[1],b.p[1])-epsilon)return false;return [a.p,b.p,mid].some(p=>this.nearest(item.s,p).distance<=epsilon);});
+      const qbox=[Math.min(a.p[0],b.p[0])-epsilon,Math.min(a.p[1],b.p[1])-epsilon,Math.max(a.p[0],b.p[0])+epsilon,Math.max(a.p[1],b.p[1])+epsilon];
+      const candidates=index?index.queryBox(qbox):items;
+      let blocked=false;
+      for(let ci=0;ci<candidates.length;ci++){
+        const cand=candidates[ci],k=index?keyToIndex.get(cand.key):ci;
+        if(k===undefined||k===a.index||k===b.index)continue;
+        const box=cand.bounds;
+        if(box[0]>qbox[2]||box[2]<qbox[0]||box[1]>qbox[3]||box[3]<qbox[1])continue;
+        if([a.p,b.p,mid].some(pt=>this.nearest(cand.s,pt).distance<=epsilon)){blocked=true;break;}
+      }
       if(!blocked)choices.set(id,j);
     }
     const graph=items.map(()=>[]);
@@ -152,18 +205,83 @@ window.DraftGeometry={
     for(let k=0;k<queue.length;k++)for(const i of graph[queue[k]])if(!visited.has(i)){visited.add(i);queue.push(i);selected.add(items[i].key);}
     return selected;
   },
-  snap(e,p,exclude=null,{midpoints=true,centers=true}={}){
-    let point=p.slice(),kind='自由位置',best=10/e.view.scale;const nearby=[];
+  snap(e,p,exclude=null,{midpoints=true,centers=true,origin=null,excludeSet=null,radiusPx=10}={}){
+    const radius=radiusPx/e.view.scale;
+    let point=p.slice(),kind='自由位置',best=radius;
+    const nearby=[];
     const consider=(q,label)=>{const d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d<best){best=d;point=q.slice();kind=label;}};
-    e.doc.paths.forEach((path,pi)=>{if(!e.visible(path))return;path.segments.forEach((s,si)=>{
+    const useMid=midpoints&&(typeof document==='undefined'||document.getElementById('snapMidpoint')?.checked);
+    const useCenter=centers&&(typeof document==='undefined'||document.getElementById('snapCenter')?.checked);
+    const index=this.spatialIndex(e.doc);
+    const candidates=index?index.queryBox([p[0]-radius,p[1]-radius,p[0]+radius,p[1]+radius]):null;
+    const visit=(path,pi,s,si)=>{
+      if(!e.visible(path))return;
       if(exclude&&pi===exclude[0]&&si===exclude[1])return;
+      if(excludeSet&&excludeSet.has(`${pi}:${si}`))return;
       if(!this.closed(s)){consider(this.point(s,0),'端点吸着');consider(this.point(s,1),'端点吸着');}
-      if(midpoints&&s.type!=='ellipse'&&document.getElementById('snapMidpoint').checked)consider(this.point(s,.5),'中点吸着');
-      if(centers&&s.type!=='line'&&document.getElementById('snapCenter').checked)consider(s.center,'中心吸着');
-      const distance=e.distance(s,p);if(distance<=10/e.view.scale)nearby.push({s,distance});
-    });});
+      if(useMid&&s.type!=='ellipse')consider(this.point(s,.5),'中点吸着');
+      if(useCenter&&s.type!=='line')consider(s.center,'中心吸着');
+      if(s.type==='arc'){
+        for(const deg of [0,90,180,270]){
+          const q=[s.center[0]+s.radius*Math.cos(deg*Math.PI/180),s.center[1]+s.radius*Math.sin(deg*Math.PI/180)];
+          if(this.onArc(s,q))consider(q,'四分円吸着');
+        }
+      }
+      if(origin&&s.type==='line'){
+        const dx=s.p1[0]-s.p0[0],dy=s.p1[1]-s.p0[1],len2=dx*dx+dy*dy;
+        if(len2>1e-12){
+          const t=((origin[0]-s.p0[0])*dx+(origin[1]-s.p0[1])*dy)/len2;
+          if(t>=0&&t<=1){const foot=[s.p0[0]+t*dx,s.p0[1]+t*dy];if(Math.hypot(foot[0]-origin[0],foot[1]-origin[1])>1e-6)consider(foot,'垂線吸着');}
+        }
+      }
+      const distance=e.distance(s,p);
+      if(distance<=radius)nearby.push({s,distance});
+    };
+    if(candidates){for(const it of candidates)visit(it.path,it.pi,it.s,it.si);}
+    else e.doc.paths.forEach((path,pi)=>path.segments.forEach((s,si)=>visit(path,pi,s,si)));
+    // Center snaps can lie outside segment bounds for large arcs when pointer is near the center.
+    if(useCenter&&index){
+      for(const it of index.items){
+        if(it.s.type==='line'||!e.visible(it.path))continue;
+        if(exclude&&it.pi===exclude[0]&&it.si===exclude[1])continue;
+        if(excludeSet&&excludeSet.has(it.key))continue;
+        consider(it.s.center,'中心吸着');
+      }
+    }
     const segments=nearby.sort((a,b)=>a.distance-b.distance).slice(0,64);
     for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++)for(const q of this.intersections(segments[i].s,segments[j].s))consider(q,'交点吸着');
     return {point,kind};
+  },
+  drawSnapMarker(c,point,kind,scale){
+    if(!point)return;
+    const r=5/scale;
+    c.save();
+    const isSnap=kind&&kind!=='自由位置';
+    const color=kind?.includes('交点')||kind?.includes('中心')?'#0057d9':kind?.includes('中点')||kind?.includes('四分円')?'#0d7490':isSnap?'#0f7a3e':'#006d77';
+    const traceShape=()=>{
+      c.beginPath();
+      if(kind?.includes('中点')){c.moveTo(point[0],point[1]-r*1.2);c.lineTo(point[0]+r*1.1,point[1]+r);c.lineTo(point[0]-r*1.1,point[1]+r);c.closePath();}
+      else if(kind?.includes('交点')){c.moveTo(point[0]-r,point[1]-r);c.lineTo(point[0]+r,point[1]+r);c.moveTo(point[0]+r,point[1]-r);c.lineTo(point[0]-r,point[1]+r);}
+      else if(kind?.includes('中心')){c.arc(point[0],point[1],r,0,Math.PI*2);}
+      else if(kind?.includes('四分円')){c.moveTo(point[0],point[1]-r*1.2);c.lineTo(point[0]+r*1.2,point[1]);c.lineTo(point[0],point[1]+r*1.2);c.lineTo(point[0]-r*1.2,point[1]);c.closePath();}
+      else if(kind?.includes('垂線')){c.moveTo(point[0]-r,point[1]+r);c.lineTo(point[0]+r,point[1]+r);c.moveTo(point[0],point[1]-r);c.lineTo(point[0],point[1]+r);}
+      else if(isSnap){c.rect(point[0]-r,point[1]-r,r*2,r*2);}
+      else{c.moveTo(point[0]-r*.9,point[1]);c.lineTo(point[0]+r*.9,point[1]);c.moveTo(point[0],point[1]-r*.9);c.lineTo(point[0],point[1]+r*.9);}
+    };
+    c.strokeStyle='rgba(255,255,255,.92)';c.lineWidth=4/scale;traceShape();c.stroke();
+    c.strokeStyle=color;c.lineWidth=2/scale;traceShape();c.stroke();
+    c.restore();
+  },
+  drawHud(c,point,text,scale){
+    if(!point||!text)return;
+    c.save();
+    const fontSize=11/scale,padX=5/scale,padY=3/scale;
+    c.font=`${fontSize}px system-ui,sans-serif`;
+    const w=c.measureText(text).width+padX*2,h=fontSize+padY*2;
+    const x=point[0]+10/scale,y=point[1]-10/scale-h;
+    c.fillStyle='rgba(255,255,255,.92)';c.strokeStyle='rgba(24,48,68,.35)';c.lineWidth=1/scale;
+    c.fillRect(x,y,w,h);c.strokeRect(x,y,w,h);
+    c.fillStyle='#183044';c.textBaseline='top';c.fillText(text,x+padX,y+padY);
+    c.restore();
   }
 };

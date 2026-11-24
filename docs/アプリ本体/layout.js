@@ -8,7 +8,7 @@
     brand:'M5 3h9l5 5v13H5z M14 3v6h5 M8 13h8 M8 17h5',
     select:'m5 3 14 10-7 1-3 7z',pan:'M8 11V6a2 2 0 0 1 4 0v5 M12 10V4a2 2 0 0 1 4 0v7 M16 10V7a2 2 0 0 1 4 0v8c0 4-2 6-6 6h-1c-2 0-4-1-5-3l-4-6a2 2 0 0 1 3-2l3 3',
     drawLine:'M5 19 19 5 M3 17h4v4H3z M17 3h4v4h-4z',drawCircle:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M10 12h4 M12 10v4',drawArc:'M4 18a8 12 0 0 1 16 0 M2 16h4v4H2z M18 16h4v4h-4z',
-    endpoint:'M4 18 17 5 M2 16h4v4H2z M15 3h4v4h-4z M16 15h6 M19 12v6',splitLine:'M3 19 9 13 M15 7l6-6 M8 5l11 14 M8 19l11-14',trimLine:'M3 12h6 M15 12h6 M9 8v8 M15 8v8 M10 10l4 4 M14 10l-4 4',
+    endpoint:'M4 18 17 5 M2 16h4v4H2z M15 3h4v4h-4z M16 15h6 M19 12v6',splitLine:'M3 19 9 13 M15 7l6-6 M8 5l11 14 M8 19l11-14',trimLine:'M3 12h6 M15 12h6 M9 8v8 M15 8v8 M10 10l4 4 M14 10l-4 4',trimTo:'M3 12h11 M14 4v16 M17 12h4 M17 9l3 3-3 3',
     extend:'M3 12h14 M12 7l5 5-5 5 M20 3v18',
     measure:'m3 15 12-12 6 6-12 12z M8 10l3 3 M12 6l3 3 M4 14l3 3',region:'M9 3H3v6 M15 3h6v6 M3 15v6h6 M21 15v6h-6 M8 8h8v8H8z',
     horizontal:'M3 12h18 M3 8v8 M21 8v8',vertical:'M12 3v18 M8 3h8 M8 21h8',merge:'M3 6h6l3 6h9 M3 18h6l3-6',mergeArcs:'M12 3a9 9 0 0 1 9 9 M12 21a9 9 0 0 1-9-9 M8 3h4v4 M12 17v4h4 M9 12h6 M12 9v6',corner:'M5 3v16h16 M9 15h4v4',linearize:'M3 18Q12 0 21 18 M3 18h18',delete:'M3 6h18 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7',
@@ -39,13 +39,13 @@
   const groups=new Map();
   let navTarget='input';
   function activeSection(key){for(const b of nav.children)b.setAttribute('aria-current',String(b.dataset.toolSection===key));}
-  function reveal(key){const box=groups.get(key);if(!box)return;navTarget=key;box.open=true;if(innerWidth<=850)box.scrollIntoView({block:'start'});else sidebar.scrollTop=Math.max(0,box.offsetTop-nav.offsetHeight);box.querySelector('summary').focus({preventScroll:true});activeSection(key);}
+  function reveal(key,focusSummary=false){const box=groups.get(key);if(!box)return;navTarget=key;box.open=true;if(innerWidth<=850)box.scrollIntoView({block:'start'});else sidebar.scrollTop=Math.max(0,box.offsetTop-nav.offsetHeight);if(focusSummary)box.querySelector('summary').focus({preventScroll:true});activeSection(key);}
   function group(key,title,nodes){
     const box=make('details','tool-group');box.id='tools-'+key;box.open=true;const summary=make('summary',''),match=title.match(/^(\d{2})\s+(.+)$/);if(match)summary.append(make('span','section-index',match[1]),make('span','section-title',match[2]));else summary.append(make('span','section-title',title));box.append(summary);
     const body=make('div','tool-body');nodes.forEach(n=>body.append(n));box.append(body);sidebar.append(box);groups.set(key,box);return body;
   }
   for(const [key,label] of [['input','開く'],['edit','修正'],['check','点検'],['draw','描く'],['measure','縮尺'],['output','出力']]){
-    const b=make('button','nav-button');b.append(icon(key),make('span','',label));b.type='button';b.dataset.toolSection=key;b.onclick=()=>reveal(key);nav.append(b);
+    const b=make('button','nav-button');b.append(icon(key),make('span','',label));b.type='button';b.dataset.toolSection=key;b.onclick=()=>reveal(key,true);nav.append(b);
   }
   activeSection('input');
   let navFrame=0;sidebar.addEventListener('scroll',()=>{if(navFrame||innerWidth<=850)return;navFrame=requestAnimationFrame(()=>{navFrame=0;const pinned=groups.get(navTarget)?.querySelector('summary').getBoundingClientRect();if(pinned&&pinned.top>=nav.getBoundingClientRect().bottom-2&&pinned.bottom<=sidebar.getBoundingClientRect().bottom){activeSection(navTarget);return;}navTarget=null;let key='input';for(const value of ['input','edit','check','draw','measure','output'])if(groups.get(value).offsetTop<=sidebar.scrollTop+nav.offsetHeight+12)key=value;activeSection(key);});},{passive:true});
@@ -54,7 +54,8 @@
   const project=make('div','project-open');project.append(el('openProject').closest('label'));
   group('project','作業を再開・バックアップ',[project,el('backupTools')]);
   group('edit','02  選択と線の修正',[el('selectionTools'),toolbar('delete'),el('axisTools'),toolbar('linearize')]);
-  el('selectionTools').querySelector('span').textContent='Altを押してなぞると触れた線を追加選択。重なった線の順送りはCtrl＋Alt＋クリック。';
+  el('boxSelection').add(new Option('方向で自動（左→右：内包 / 右→左：交差）','auto'));
+  el('selectionTools').querySelector('span').textContent='Altでなぞり追加（Shift併用で解除）。Ctrl＋Shift＋ドラッグで枠除外。重なり順送りはCtrl＋Alt＋クリック。';
   const repair=make('div','toolbar');
   const repairButton=make('button','','途切れを一括修復');repairButton.id='repairLines';repairButton.type='button';repairButton.disabled=true;
   repair.append(repairButton,make('p','note','①選択モードで範囲を囲む → ②一括修復。選択した直線のみを接続し、交点付近は残します。破線の範囲は避けてください。設定は「線の修正・保護」。元に戻す1回で取り消せます。'));
@@ -86,11 +87,11 @@
   // Tool shortcuts live beside the drawing; detailed settings stay in the sidebar.
   const toolStrip=make('div','mode-strip');toolStrip.setAttribute('role','toolbar');toolStrip.setAttribute('aria-label','図面の操作');
   const proxies=[];
-  const modes=[['select','選択','V'],['pan','画面移動','H'],['drawLine','直線','L'],['drawCircle','円','C'],['drawArc','円弧','A'],['endpoint','端点','E'],['extend','延長',''],['splitLine','分割','X'],['trimLine','区間削除','T'],['measure','測定','M'],['region','範囲','R']];
+  const modes=[['select','選択','V'],['pan','画面移動','H'],['drawLine','直線','L'],['drawCircle','円','C'],['drawArc','円弧','A'],['endpoint','端点','E'],['extend','延長',''],['trimTo','切り詰め',''],['splitLine','分割','X'],['trimLine','区間削除','T'],['measure','測定','M'],['region','範囲','R']];
   for(const [mode,label,key] of modes){
-    const b=make('button','mode-button',label);b.type='button';b.id='tool-'+mode;b.dataset.mode=mode;b.title=label+'（'+key+'）';b.setAttribute('aria-keyshortcuts',key);
+    const b=make('button','mode-button',label);b.type='button';b.id='tool-'+mode;b.dataset.mode=mode;b.title=label+(key?'（'+key+'）':'');if(key)b.setAttribute('aria-keyshortcuts',key);
     b.prepend(icon(mode));
-    b.onclick=()=>{const e=window.draftEditor;if(!e||e.busy||!e.doc)return;const source={endpoint:'moveEndpoint',extend:'extendTo',measure:'measureMode',region:'regionMode'}[mode]||mode;if(el(source))el(source).click();else e.setMode(mode);e.canvas.focus({preventScroll:true});};
+    b.onclick=()=>{const e=window.draftEditor;if(!e||e.busy||!e.doc)return;const source={endpoint:'moveEndpoint',extend:'extendTo',measure:'measureMode',region:'regionMode',trimTo:'trimTo'}[mode]||mode;if(el(source))el(source).click();else e.setMode(mode);e.canvas.focus({preventScroll:true});};
     toolStrip.append(b);
   }
   const view=el('mode').closest('.toolbar');view.classList.add('view-toolbar');
@@ -99,6 +100,14 @@
   el('mode').closest('label').classList.add('mode-picker');
   const fitSelected=make('button','','選択を拡大');fitSelected.id='fitSelected';fitSelected.title='選択した線を画面いっぱいに表示（Shift＋F）';fitSelected.onclick=()=>window.draftEditor?.fitSelection();
   el('fit').after(fitSelected);el('fit').title='図面全体を表示（F）';
+  const weightLabel=make('label','','線幅'),weightSelect=document.createElement('select');weightSelect.id='lineWeight';
+  for(const [v,t] of [['0.7','細'],['1','標準'],['1.8','太']])weightSelect.add(new Option(t,v));
+  weightSelect.value='1';weightSelect.onchange=()=>{if(window.draftEditor){window.draftEditor.lineWeight=Number(weightSelect.value)||1;window.draftEditor.draw();}};
+  weightLabel.append(weightSelect);
+  const overlayLabel=make('label',''),overlayCheck=document.createElement('input');overlayCheck.id='overlayBaseline';overlayCheck.type='checkbox';
+  overlayCheck.onchange=()=>{if(window.draftEditor){window.draftEditor.overlayBaseline=overlayCheck.checked;window.draftEditor.draw();}};
+  overlayLabel.append(overlayCheck,'修正前を重ね表示');
+  el('opacity').closest('label').after(weightLabel,overlayLabel);
   el('zoomLevel').title='画面上の表示倍率です。DXFの実寸縮尺や出力サイズは変わりません。';
   el('dpi').closest('label').firstChild.textContent='用紙換算DPI';
   el('dpi').closest('label').title='画像のpxを用紙上のmmへ換算します。PDFの用紙サイズと、実寸未設定時のDXFサイズに使用します。線の精度を上げる設定ではありません。';
@@ -125,7 +134,7 @@
     register(key,box){groups.set(key,box);},
     updateDrag(e){
       const moving=e.drag?.move?.started;canvas.classList.toggle('is-moving',!!moving);
-      if(moving){const mm=DraftWorkflow.scale(e),[dx,dy]=e.drag.move.delta;modeBadge.textContent='線の移動';hint.textContent=`横 ${(dx*mm).toFixed(2)} mm / 縦 ${(dy*mm).toFixed(2)} mm（${e.calibration?'実寸':'用紙上'}、右・下が正） / 離すと反映 / Escで中止`;}
+      if(moving){const mm=DraftWorkflow.scale(e),[dx,dy]=e.drag.move.delta;const snapNote=e.moveSnap?` [${e.moveSnap.kind}]`:'';modeBadge.textContent='線の移動';hint.textContent=`横 ${(dx*mm).toFixed(2)} mm / 縦 ${(-dy*mm).toFixed(2)} mm（${e.calibration?'実寸':'用紙上'}、右・上が正）${snapNote} / Shiftで水平・垂直 / 離すと反映 / Escで中止`;}
     },
     update(e){
       const mode=e.mode;
@@ -135,7 +144,7 @@
         el(id).classList.toggle('active-tool',active);el(id).setAttribute('aria-pressed',String(active));
       }
       fitSelected.disabled=e.busy||!e.selected.size;
-      for(const id of ['zoomIn','zoomOut','fit','showOriginal','opacity'])el(id).disabled=!e.doc;
+      for(const id of ['zoomIn','zoomOut','fit','showOriginal','opacity','lineWeight','overlayBaseline'])if(el(id))el(id).disabled=!e.doc;
       canvas.dataset.mode=mode;canvas.classList.toggle('is-panning',!!e.drag?.pan||!!e.spacePan);
       const refs=[...e.selected];let lines=0,arcs=0,ellipses=0;
       if(e.doc)for(const ref of refs){const [pi,si]=ref.split(':').map(Number);const s=e.doc.paths[pi]?.segments[si];if(s?.type==='line')lines++;else if(s?.type==='arc')arcs++;else if(s?.type==='ellipse')ellipses++;}
@@ -145,11 +154,12 @@
         const key=window.DraftSettings?.key(id),suffix=key?'（'+key+'）':'';
         b.title=(b.disabled?(e.busy?'現在は編集できません。':ellipses&&id!=='delete'?'選択に楕円が含まれています。':needsLines&&arcs?'直線だけを選択してください。':id==='corner'?'直線を2本選択してください。':id==='mergeArcs'?'円周の線・円弧を2つ以上選択してください。':id==='mergeEllipse'?'輪郭の直線を5本以上、円弧を含むなら3要素以上選択してください。':id==='linearize'?'円弧を選択してください。':'線を選択してください。')+' '+tip:tip)+suffix;
       }
-      selectionInfo.textContent=refs.length?`${refs.length}個選択 · 直線${lines} / 円弧${arcs}${ellipses?' / 楕円'+ellipses:''}`:'線を選ぶと修正できます';
+      const cycleNote=e.cyclePick?.total>1?` · 重なり ${e.cyclePick.index}/${e.cyclePick.total}`:'';
+      selectionInfo.textContent=refs.length?`${refs.length}個選択 · 直線${lines} / 円弧${arcs}${ellipses?' / 楕円'+ellipses:''}${cycleNote}`:'線を選ぶと修正できます';
       const source=mode==='endpoint'?'endpointHint':mode==='extend'?'extendHint':['splitLine','trimLine'].includes(mode)?'cutHint':mode.startsWith('draw')?'drawHint':mode==='measure'?'measureResult':mode==='region'?'regionHint':null;
       const selectKey=window.DraftSettings?.key('select'),undoKey=window.DraftSettings?.key('undo');
-      hint.textContent=source?el(source).textContent:mode==='pan'?'ドラッグで図面を移動 / ホイールで拡大・縮小 / '+(selectKey?selectKey+'で選択へ':'選択ボタンで戻る'):'Altでなぞって追加選択 / 選択した線をドラッグで移動 / Ctrlで追加 / Ctrl＋Altで重なりを順送り / '+(undoKey?undoKey+'で元に戻す':'元に戻すボタンで取り消し');
-      if(e.altPainting&&mode==='select'){modeBadge.textContent='なぞり選択';hint.textContent='Altを押したまま線をなぞると追加選択 / 離すと終了 / 線は移動しません';}
+      hint.textContent=source?el(source).textContent:mode==='pan'?'ドラッグで図面を移動 / ホイールで拡大・縮小 / '+(selectKey?selectKey+'で選択へ':'選択ボタンで戻る'):'Altでなぞり選択 / 選択線をドラッグで吸着移動（Shiftで直交） / Ctrlで追加 / Ctrl＋Altで重なり順送り / '+(undoKey?undoKey+'で元に戻す':'元に戻すボタンで取り消し');
+      if(e.altPainting&&mode==='select'){modeBadge.textContent=e.altSubtract?'なぞり解除':'なぞり選択';hint.textContent=e.altSubtract?'Alt＋Shiftを押したまま線をなぞると選択解除 / 離すと終了':'Altを押したまま線をなぞると追加選択 / Shift併用で解除 / 離すと終了';}
       if(e.comparing){modeBadge.textContent='比較';hint.textContent=`${e.baselineLabel}の形状を表示中（閲覧のみ）。下の「編集後に戻る」またはEscで編集を再開。縮尺設定は比較対象外。`;}
       if(e.processing){modeBadge.textContent='処理中';hint.textContent='処理が終わるまでお待ちください。';}
       name.textContent=e.doc?e.name:'図面を開いてください';name.title=name.textContent;

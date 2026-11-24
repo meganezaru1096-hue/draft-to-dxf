@@ -36,7 +36,17 @@ window.DraftEndpoint={
     const extent=dir*d.arcSweep,fixedAngle=s.start_deg+(d.endpoint===0?s.extent_deg:0),segment={...s,start_deg:d.endpoint===0?fixedAngle-extent:fixedAngle,extent_deg:extent};
     return {point:DraftGeometry.point(segment,d.endpoint),segment,arc_extent:extent,valid:d.arcSweep*s.radius*Math.PI/180>=1e-6,kind:`円弧 ${d.arcSweep.toFixed(1)}°（中心・半径固定）${d.arcSweep===360?'：一周の円':''}`};
   },
-  find(e,p){let best=10/e.view.scale,found=null;e.doc.paths.forEach((path,pi)=>{if(!e.visible(path))return;path.segments.forEach((s,si)=>{if(DraftGeometry.closed(s)||(e.endpointScope&&e.endpointScope!==`${pi}:${si}`))return;[DraftGeometry.point(s,0),DraftGeometry.point(s,1)].forEach((q,endpoint)=>{const dist=Math.hypot(q[0]-p[0],q[1]-p[1]);if(dist<best){best=dist;found={ref:[pi,si],endpoint,segment:s};}});});});return found;},
+  find(e,p){
+    let best=10/e.view.scale,found=null;
+    const index=DraftGeometry.spatialIndex(e.doc),candidates=index?index.queryBox([p[0]-best,p[1]-best,p[0]+best,p[1]+best]):null;
+    const visit=(path,pi,s,si)=>{
+      if(!e.visible(path)||DraftGeometry.closed(s)||(e.endpointScope&&e.endpointScope!==`${pi}:${si}`))return;
+      [DraftGeometry.point(s,0),DraftGeometry.point(s,1)].forEach((q,endpoint)=>{const dist=Math.hypot(q[0]-p[0],q[1]-p[1]);if(dist<best){best=dist;found={ref:[pi,si],endpoint,segment:s};}});
+    };
+    if(candidates){for(const it of candidates)visit(it.path,it.pi,it.s,it.si);}
+    else e.doc.paths.forEach((path,pi)=>path.segments.forEach((s,si)=>visit(path,pi,s,si)));
+    return found;
+  },
   pick(e,p){
     if(!e.endpointDraft){
       const found=this.find(e,p);
@@ -55,7 +65,9 @@ window.DraftEndpoint={
     if(e.mode!=='endpoint')return;
     const scale=e.view.scale;if(!e.endpointDraft||!e.endpointTarget){const h=e.endpointHover;if(h){c.strokeStyle='#148443';c.lineWidth=2/scale;c.beginPath();c.arc(...DraftGeometry.point(h.segment,h.endpoint),5/scale,0,Math.PI*2);c.stroke();}return;}
     const d=e.endpointDraft,p=e.endpointTarget.point,other=DraftGeometry.point(d.segment,1-d.endpoint);
-    c.strokeStyle='#d05b00';c.lineWidth=2/scale;c.setLineDash([5/scale,3/scale]);c.beginPath();if(d.segment.type==='arc'){const s=e.endpointTarget.segment||d.segment;c.arc(...s.center,s.radius,s.start_deg*Math.PI/180,(s.start_deg+s.extent_deg)*Math.PI/180,s.extent_deg<0);}else{c.moveTo(...other);c.lineTo(...p);}c.stroke();c.setLineDash([]);
-    c.strokeStyle=e.endpointTarget.kind.includes('吸着')?'#148443':'#d05b00';c.strokeRect(p[0]-5/scale,p[1]-5/scale,10/scale,10/scale);
+    c.save();
+    c.strokeStyle='#006d77';c.lineWidth=2/scale;c.setLineDash([5/scale,3/scale]);c.beginPath();if(d.segment.type==='arc'){const s=e.endpointTarget.segment||d.segment;c.arc(...s.center,s.radius,s.start_deg*Math.PI/180,(s.start_deg+s.extent_deg)*Math.PI/180,s.extent_deg<0);}else{c.moveTo(...other);c.lineTo(...p);}c.stroke();c.setLineDash([]);
+    DraftGeometry.drawSnapMarker(c,p,e.endpointTarget.kind,scale);
+    c.restore();
   }
 };
