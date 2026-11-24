@@ -4,7 +4,7 @@ window.DraftEditor = class {
   constructor(canvas,send){
     this.canvas=canvas;this.send=send;this.doc=null;this.selected=new Set();this.mode='select';this.dirty=false;this.busy=false;
     this.view={scale:1,x:0,y:0};this.background=null;this.drag=null;this.undo=false;this.redo=false;this.anchors=new Map();
-    this.comparing=false;this.baseline=null;this.overlayBaseline=false;this.lineWeight=1;this.hideVectors=false;
+    this.comparing=false;this.baseline=null;this.overlayBaseline=false;this.hideVectors=false;
     this.hoverKey=null;this.editSeq=0;this._drawFrame=0;this.moveSnap=null;
     document.getElementById('compareBefore').onclick=()=>{if(this.processing||this.pendingPreview||!this.doc)return;this.comparing=!this.comparing;this.drag=null;this.setMode('select');};
     DraftMeasure.init(this);DraftDraw.init(this);DraftEndpoint.init(this);DraftExtend.init(this);DraftCut.init(this);DraftWorkflow.init(this);DraftInspect.init(this);this.attach();new ResizeObserver(()=>this.draw()).observe(canvas);
@@ -73,6 +73,8 @@ window.DraftEditor = class {
     if(rotated)this.fit();else this.draw();
   }
   setMode(mode){
+    // Removed tools must not be reactivated by old integrations or key settings.
+    if(['pan','splitLine','region','trimTo'].includes(mode))mode='select';
     if(this.mode==='measure'&&mode!=='measure'&&this.measurePoints.length===1)this.measurePoints=[];
     DraftMeasure.dismiss(this);
     this.drag=null;this.stopBrush();this.cyclePick=null;this.hoverKey=null;this.moveSnap=null;
@@ -161,7 +163,7 @@ window.DraftEditor = class {
     const pad=16/v.scale;
     const viewBox=[-v.x/v.scale-pad,-v.y/v.scale-pad,(r.width-v.x)/v.scale+pad,(r.height-v.y)/v.scale+pad];
     const intersectsView=b=>!(b[0]>viewBox[2]||b[2]<viewBox[0]||b[1]>viewBox[3]||b[3]<viewBox[1]);
-    const weight=this.lineWeight||1;
+    const weight=1;
     // Optional baseline overlay behind edited vectors.
     if(!this.comparing&&this.overlayBaseline&&this.baseline&&!this.hideVectors){
       c.save();DraftRotation.context(c,this.doc.width,this.doc.height,this.baselineTurns);

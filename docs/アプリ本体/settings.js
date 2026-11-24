@@ -3,14 +3,14 @@
   const $=id=>document.getElementById(id);
   const make=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text)n.textContent=text;return n;};
   const actions=[
-    ['select','選択','V','tool-select'],['pan','画面移動','H','tool-pan'],
+    ['select','選択','V','tool-select'],
     ['drawLine','直線を描く','L','tool-drawLine'],['drawCircle','円を描く','C','tool-drawCircle'],['drawArc','円弧を描く','A','tool-drawArc'],
-    ['endpoint','端点を動かす','E','tool-endpoint'],['splitLine','線を分割','X','tool-splitLine'],['trimLine','区間削除','T','tool-trimLine'],
+    ['endpoint','端点を動かす','E','tool-endpoint'],['trimLine','区間削除','T','tool-trimLine'],
     ['extend','相手まで延長・短縮','','tool-extend'],
-    ['copySelected','選択を複写','','copySelected'],['moveSelected','選択を数値移動','','moveSelected'],['offsetSelected','オフセット複写','','offsetSelected'],['trimTo','相手まで切り詰め','','tool-trimTo'],
+    ['copySelected','選択を複写','','copySelected'],['moveSelected','選択を数値移動','','moveSelected'],['offsetSelected','オフセット複写','','offsetSelected'],
     ['filletSelected','角をR丸め','','filletSelected'],['rotateSelected','選択を回転','','rotateSelected'],['mirrorH','選択を左右反転','','mirrorH'],['mirrorV','選択を上下反転','','mirrorV'],
     ['toggleOriginal','下絵の表示切替','','showOriginal'],
-    ['measure','測定','M','tool-measure'],['region','範囲を指定','R','tool-region'],
+    ['measure','測定','M','tool-measure'],
     ['fit','全体表示','F','fit'],['fitSelected','選択を拡大','Shift+F','fitSelected'],
     ['saveProject','編集データ保存','Ctrl+S','saveProject'],['undo','元に戻す','Ctrl+Z','undo'],['redo','やり直す','Ctrl+Y','redo'],
     ['selectAll','対象を全選択','Ctrl+A','selectAll'],['delete','選択を削除','D','quick-delete'],
@@ -28,12 +28,12 @@
   ];
   const controls=sections.flatMap(s=>s[2]);
   // Keep operation parameters and drawing dimensions separate from preferences.
-  const savedControls=new Set([...controls,'noise','regionNoise','pdfDpi','pdfInputMode','showOriginal','opacity','drawAxis','boxSelection','lineWeight']);
+  const savedControls=new Set([...controls,'noise','pdfDpi','pdfInputMode','showOriginal','opacity','drawAxis','boxSelection']);
   const defaults=Object.fromEntries([...savedControls].map(id=>[id,$(id).type==='checkbox'?$(id).checked:$(id).value]));
   const defaultKeys=Object.fromEntries(actions.map(([id,,key])=>[id,key]));
   const storageKey='draft-to-dxf-settings-v1';let keys={...defaultKeys},values={...defaults},storageError='',restoredRecord=null,savedAt=0,revision=0,applying=false;
   const validKey=key=>typeof key==='string'&&(key===''||/^(Ctrl\+)?(Shift\+)?([A-Z0-9]|Delete|F[2-4]|F[6-9]|F10)$/.test(key))&&!/^Ctrl\+(Shift\+)?([WTNRLOPQ]|F4|F6)$/.test(key)&&key!=='Ctrl+Shift+Delete';
-  const optionalActions=new Set(['extend','copySelected','moveSelected','offsetSelected','trimTo','mergeEllipse','filletSelected','rotateSelected','mirrorH','mirrorV','toggleOriginal']);
+  const optionalActions=new Set(['extend','copySelected','moveSelected','offsetSelected','mergeEllipse','filletSelected','rotateSelected','mirrorH','mirrorV','toggleOriginal']);
   function completeKeys(raw,migrate=false){if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;const next={};for(const [id] of actions){const value=optionalActions.has(id)&&!Object.hasOwn(raw,id)?'':raw[id];if(!validKey(value))return null;next[id]=value;}const bound=Object.values(next).filter(Boolean);if(new Set(bound).size!==bound.length)return null;if(migrate&&next.delete==='Delete'&&!Object.entries(next).some(([id,key])=>id!=='delete'&&key==='D'))next.delete='D';return next;}
   function validValue(id,value){const n=$(id);if(!n)return false;if(n.tagName==='SELECT')return typeof value==='string'&&[...n.options].some(o=>o.value===value);return n.type==='checkbox'?typeof value==='boolean':typeof value==='string'&&value.trim()!==''&&Number.isFinite(Number(value))&&(!n.min||Number(value)>=Number(n.min))&&(!n.max||Number(value)<=Number(n.max));}
   const isRecord=data=>data?.version===1&&data.values&&typeof data.values==='object'&&!Array.isArray(data.values);
@@ -121,7 +121,7 @@
     watchPreference(control,n);
   }const reset=make('button','settings-reset','この項目を標準に戻す');reset.id='reset-settings-'+id;reset.onclick=()=>{for(const control of ids){const n=$(control);if(n.disabled)continue;if(n.type==='checkbox')n.checked=defaults[control];else n.value=defaults[control];n.dispatchEvent(new Event('change',{bubbles:true}));}};panel.append(reset);}
   panelMap.get('editing').append(make('p','note','直線の許容ずれは統合・整列に使用します。単位pxは元画像上の距離です。円・円弧統合は許容ずれの数値制限を使用しません。保護枠が非表示でも保護は有効です。'));
-  panelMap.get('snapping').append(make('p','note','描画・端点移動・分割・測定の各操作に適用します。中点と円の中心は描画・端点移動で使用します。'));
+  panelMap.get('snapping').append(make('p','note','描画・端点移動・区間削除・測定の各操作に適用します。中点と円の中心は描画・端点移動で使用します。'));
   panelMap.get('measurement').append(make('p','note','実寸合わせを「2点を指定」または「選択した直線」から選びます。直線方式は1本選択し、その実際の長さをmmで入力します。設定方式は保存されますが、図面の実寸倍率は適用ボタンを押すまで変わりません。円弧は対象外です。'));
   panelMap.get('inspection').append(make('p','note','変更後は作業画面の「確認候補を検出」で再検出してください。基準の単位は元画像上のpxです。'));
   const transfer=make('div','settings-transfer'),saveSettings=make('button','','設定をファイル保存'),loadSettings=make('button','','設定ファイルを読込'),settingsFile=make('input','');saveSettings.id='exportSettings';loadSettings.id='importSettings';settingsFile.id='settingsFile';settingsFile.type='file';settingsFile.accept='.json,application/json';settingsFile.hidden=true;transfer.append(saveSettings,loadSettings,settingsFile);

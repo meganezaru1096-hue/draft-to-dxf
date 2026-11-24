@@ -42,7 +42,7 @@
       };
       e.setMode=value=>{
         e.trimDraft=null;mode(value);
-        const key={drawLine:'draw',drawCircle:'draw',drawArc:'draw',endpoint:'endpoint',extend:'extend',trimTo:'productivity',splitLine:'cut',trimLine:'cut',measure:'measure',region:'region'}[value];
+        const key={drawLine:'draw',drawCircle:'draw',drawArc:'draw',endpoint:'endpoint',extend:'extend',trimLine:'cut',measure:'measure'}[e.mode];
         if(key)DraftLayout.reveal(key,false);
       };
       const commit=DraftMeasure.commit.bind(DraftMeasure);
@@ -82,10 +82,10 @@
       for(const [id,label] of [['propertySize','長さ / 直径 mm'],['propertyMinor','短径 mm'],['propertyAngle','角度 °']]){const l=make('label',null,label),n=make('input',id);n.type='number';n.step='any';l.hidden=id==='propertyMinor';l.append(n);form.append(l);}
       const apply=make('button','applyProperties','寸法を変更');apply.type='button';apply.onclick=()=>this.applyProperties(e);form.append(apply);body.append(form,make('p','propertyHint','直線の角度は右0°・上90°。始点を維持。円・円弧は中心を維持します。'));
 
-      const prod=make('details','tools-productivity');prod.className='tool-group';prod.open=true;prod.append(make('summary',null,'複写・移動・変形・切り詰め'));
+      const prod=make('details','tools-productivity');prod.className='tool-group';prod.open=true;prod.append(make('summary',null,'複写・移動・変形'));
       const pb=make('div');pb.className='tool-body';prod.append(pb);$('tools-arc').before(prod);
       for(const [id,t,v] of [['copyX','移動 / 複写 横 mm','10'],['copyY','移動 / 複写 縦 mm','0'],['offsetDistance','オフセット mm','1']]){const l=make('label',null,t),n=make('input',id);n.type='number';n.step='any';n.value=v;l.append(n);pb.append(l);}
-      for(const [id,t,f] of [['copySelected','選択を複写',()=>this.copy(e)],['moveSelected','選択を数値移動',()=>this.moveNumeric(e)],['offsetSelected','平行線 / 同心円を複写',()=>this.offset(e)],['trimTo','相手まで切り詰め',()=>e.setMode('trimTo')]]){const b=make('button',id,t);b.type='button';b.onclick=f;pb.append(b);}
+      for(const [id,t,f] of [['copySelected','選択を複写',()=>this.copy(e)],['moveSelected','選択を数値移動',()=>this.moveNumeric(e)],['offsetSelected','平行線 / 同心円を複写',()=>this.offset(e)]]){const b=make('button',id,t);b.type='button';b.onclick=f;pb.append(b);}
       const xformRow=make('div');xformRow.className='toolbar';
       const angLabel=make('label',null,'回転角 °'),angInput=make('input','transformAngle');angInput.type='number';angInput.step='any';angInput.value='90';angLabel.append(angInput);
       const rotBtn=make('button','rotateSelected','選択を回転');rotBtn.type='button';rotBtn.title='選択した要素を中心基準で反時計回りに回転';rotBtn.onclick=()=>this.rotateSelection(e);
@@ -97,8 +97,6 @@
       const filBtn=make('button','filletSelected','2直線の角をR丸め');filBtn.type='button';filBtn.onclick=()=>this.fillet(e);
       filletRow.append(filLabel,filBtn);pb.append(filletRow);
       pb.append(make('p',null,'移動・複写：右・上が正。回転：反時計回りが正。オフセット：入力欄にカーソルを置くと緑破線で方向を事前表示します。'));
-      document.getElementById('mode').add(new Option('相手まで切り詰め','trimTo'));
-      const trimHint=make('p','trimToHint','①短くする側の端点 → ②相手の線をクリック。');pb.append(trimHint);
 
       // Offset direction preview while editing offset distance or hovering offset button.
       const setPreview=v=>{if(this.offsetPreviewActive!==v){this.offsetPreviewActive=v;e.scheduleDraw();}};
@@ -149,7 +147,6 @@
       for(const id of ['rotateSelected','mirrorH','mirrorV'])$(id).disabled=e.busy||!e.selected.size;
       $('filletSelected').disabled=e.busy||!onlyTwoLines||!Number.isFinite(mm)||mm<=0;
       $('offsetSelected').title=hasEllipse?'楕円はオフセットの対象外です。':'';
-      $('trimTo').disabled=e.busy||!e.doc;
       $('propertyFields').hidden=items.length!==1;$('applyProperties').disabled=e.busy||items.length!==1;
       if(items.length===1){const {s}=items[0],ellipse=s.type==='ellipse',line=s.type==='line',circle=!ellipse&&DraftGeometry.closed(s);
         $('propertyMinor').closest('label').hidden=!ellipse;

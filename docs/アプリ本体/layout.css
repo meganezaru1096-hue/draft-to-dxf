@@ -1,4 +1,5 @@
 /* Draft to DXF — quiet, precision-oriented desktop workspace. */
+#tools-region[hidden]{display:none!important}
 .output-summary{white-space:pre-line;padding:10px;border:1px solid #cdded8;border-radius:7px;background:#f1f7f4;font-variant-numeric:tabular-nums}
 .property-fields{display:grid;gap:8px}.property-fields[hidden],.property-fields label[hidden]{display:none}.property-fields label{display:flex;justify-content:space-between}.property-fields input{width:105px!important}
 .snap-status{display:flex;gap:8px;align-items:center;padding:3px 11px;border-top:1px solid #e8eeea;font-size:10px;color:#60796e;flex:none;min-height:27px}.snap-status button{font-size:10px;padding:3px 7px;min-height:21px}.snap-status button[aria-pressed=true]{color:#146b43;background:#eef8f2;border-color:#bfdac9}

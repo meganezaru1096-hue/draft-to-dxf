@@ -4,14 +4,14 @@ window.DraftCut={
   full(s){return s.type==='arc'&&Math.abs(s.extent_deg)>=359.999999;},
   init(e){
     this.reset(e);
-    for(const [id,label] of [['splitLine','線・円弧を分割'],['trimLine','区間を削除']]){
+    for(const [id,label] of [['trimLine','区間を削除']]){
       document.getElementById('mode').add(new Option(label,id));
       document.getElementById(id).onclick=()=>{const scope=e.selected.size===1?[...e.selected][0]:null;e.setMode(id);e.cutScope=scope;this.update(e);};
     }
     document.getElementById('cancelCut').onclick=()=>{this.reset(e);this.update(e);e.draw();};
     document.getElementById('confirmCut').onclick=()=>this.commit(e);
     const side=document.createElement('label');side.append('円で消す区間 ');const choice=document.createElement('select');choice.id='circleTrimSide';choice.add(new Option('短い側','short'));choice.add(new Option('長い側','long'));side.append(choice);document.getElementById('cancelCut').before(side);choice.onchange=()=>{this.update(e);e.draw();};
-    const guide=document.createElement('p');guide.className='note cut-guide';guide.textContent='分割：線の途中を1回クリック。形は変わらず、別々に選べる2本になります。円は2か所を指定します。区間削除：消す区間の両端を順にクリック。マウス移動中の赤い部分が削除されます。';document.getElementById('cutHint').after(guide);
+    const guide=document.createElement('p');guide.className='note cut-guide';guide.textContent='消す区間の両端を順にクリック。マウス移動中の赤い部分が削除されます。円は短い側／長い側を選べます。';document.getElementById('cutHint').after(guide);
     e.canvas.addEventListener('pointermove',ev=>{
       if(!e.doc||e.busy||!this.active(e))return;
       const p=e.world(e.position(ev));if(!e.cutDraft){e.cutCandidate=this.find(e,p);if(e.cutCandidate)e.cutCandidate.t=this.position(e,e.cutCandidate,p);}else e.cutHover=e.distance(e.cutDraft.segment,p)<=10/e.view.scale?this.position(e,e.cutDraft,p):null;e.scheduleDraw?e.scheduleDraw():e.draw();
@@ -22,11 +22,11 @@ window.DraftCut={
     if(d.second!=null){const delta=Math.abs(d.second-d.first),span=this.full(d.segment)?Math.min(delta,1-delta):delta;if(span*DraftGeometry.length(d.segment)<1e-6){d.second=null;this.update(e);document.getElementById('cutHint').textContent='異なる2か所を指定してください。2点目を選び直せます。';e.draw();return;}}
     const action=e.mode,circle_side=document.getElementById('circleTrimSide').value;this.reset(e);e.send({kind:'edit',action,refs:[d.ref],first:d.first,second:d.second,circle_side});},
   update(e){
-    for(const id of ['splitLine','trimLine','cutSnap'])document.getElementById(id).disabled=e.busy||!e.doc;
+    for(const id of ['trimLine','cutSnap'])document.getElementById(id).disabled=e.busy||!e.doc;
     document.getElementById('cancelCut').disabled=e.busy||!e.cutDraft;
     document.getElementById('confirmCut').disabled=e.busy||!e.cutDraft||((e.mode==='trimLine'||this.full(e.cutDraft.segment))&&e.cutDraft.second==null);
     document.getElementById('circleTrimSide').disabled=e.busy||e.mode!=='trimLine';
-    document.getElementById('cutHint').textContent=!this.active(e)?'分割は形を変えずに別々の要素へ。区間削除は2点間を消します。直線・円弧・円に対応。':!e.cutDraft?(e.mode==='splitLine'?(e.selected.size>=2?'分割済み：丸印が切れ目です。「選択」に戻り、片側をクリックして移動・削除できます。':'①分けたい位置をクリック。円は円周上の2か所を指定。形は変わりません。'):'①消したい区間の端をクリック → ②反対側の端をクリック。赤い部分を削除。'):e.mode==='splitLine'?'②同じ円周の別の位置をクリックすると2本の円弧に分割します（Escで中止）':'②同じ線・円弧・円上の反対側の端をクリック。円は短い側／長い側を選択できます（Escで中止）';
+    document.getElementById('cutHint').textContent=!this.active(e)?'2点間の区間を削除します。直線・円弧・円に対応。':!e.cutDraft?'①消したい区間の端をクリック → ②反対側の端をクリック。赤い部分を削除。':'②同じ線・円弧・円上の反対側の端をクリック。円は短い側／長い側を選択できます（Escで中止）';
   },
   point(s,t){return DraftGeometry.point(s,t);},
   stroke(c,s,a,b){c.beginPath();DraftGeometry.trace(c,s,a,b);c.stroke();},

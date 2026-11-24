@@ -2,7 +2,6 @@ window.DraftWorkflow={
   init(e){
     document.getElementById('previewRegion').textContent='範囲を再変換';document.getElementById('previewArc').textContent='円・円弧を変更';
     e.protection=[];e.protectionUndo=[];e.protectionRedo=[];e.rotationUndo=[];e.rotationRedo=[];e.backgroundTurns=0;e.baselineTurns=0;e.pendingPreview=null;e.regionBox=null;e.revision=0;
-    document.getElementById('mode').add(new Option('範囲再変換','region'));
     document.getElementById('regionMode').onclick=()=>e.setMode('region');
     document.getElementById('previewRegion').onclick=()=>this.region(e);
     document.getElementById('protectSelected').onclick=()=>{
