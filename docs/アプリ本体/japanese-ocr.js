@@ -471,6 +471,20 @@ function hasVerticalSpanLine(crop, thresh) {
   return false;
 }
 
+function hasHorizontalSpanLine(crop, thresh) {
+  const { w, h, data } = crop;
+  if (w <= 14) return false;
+  for (let y = 0; y < h; y++) {
+    let c = 0;
+    for (let x = 0; x < w; x++) {
+      const p = (y * w + x) * 3;
+      if (0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2] < 185) c++;
+    }
+    if (c / w > thresh) return true;
+  }
+  return false;
+}
+
 function countDarkPixels(crop, thresh) {
   const { w, h, data } = crop;
   let c = 0;
@@ -483,11 +497,14 @@ function countDarkPixels(crop, thresh) {
 function isBoltOrSymbolFp(text, score, detScore, quad, rawCrop, cleanCrop) {
   const t = String(text || '').trim();
   if (!t || score < 0.65) return true;
+  // Reject pure line/punctuation symbol repeats (e.g. parallel hatch or double walls read as ||, //, --, ==, []).
+  if (/^[|\\-\\/\\\\=+\\[\\]():.;,._~*]+$/.test(t)) return true;
   const ux = quad[1][0] - quad[0][0], uy = quad[1][1] - quad[0][1];
   const vx = quad[3][0] - quad[0][0], vy = quad[3][1] - quad[0][1];
   const w = Math.hypot(ux, uy), h = Math.hypot(vx, vy);
   const ang = Math.abs(Math.atan2(uy, ux) * 180 / Math.PI);
   const chars = Array.from(t);
+  const hasKanaCjk = /[\\u3040-\\u30ff\\u4e00-\\u9fff]/.test(t);
 
   if (chars.length === 1) {
     if ('0oO@©C〇・.一丨|/-+×*()[]{}日申中令φΦ⌀'.includes(t)) return true;
@@ -498,8 +515,11 @@ function isBoltOrSymbolFp(text, score, detScore, quad, rawCrop, cleanCrop) {
     if (detScore < 0.52 || score < 0.90) return true;
     if (detScore < 0.62 && Math.max(w, h) < 55) return true;
   }
-  if ((['lo','l0','Io','I0','1o','1O','TO','±1'].includes(t) && (score < 0.995 || detScore < 0.65)) || (t === '11' && score < 0.85)) {
-    if (hasVerticalSpanLine(rawCrop, 0.58) && Math.max(w, h) < 120) return true;
+  if ((['lo','l0','Io','I0','1o','1O','TO','±1','II','ll','lI','Il'].includes(t) && (score < 0.995 || detScore < 0.65)) || (t === '11' && score < 0.85)) {
+    if ((hasVerticalSpanLine(rawCrop, 0.58) || hasHorizontalSpanLine(rawCrop, 0.58)) && Math.max(w, h) < 120) return true;
+  }
+  if (chars.length <= 2 && !hasKanaCjk && score < 0.78 && (hasVerticalSpanLine(rawCrop, 0.68) || hasHorizontalSpanLine(rawCrop, 0.68))) {
+    return true;
   }
   if (['lo','l0','Io'].includes(t) && Math.max(w, h) < 75) return true;
   if (chars.length <= 2 && isCrosshairOrBoltCrop(rawCrop) && score < 0.97) return true;

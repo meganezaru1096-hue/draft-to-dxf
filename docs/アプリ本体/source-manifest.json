@@ -16,5 +16,6 @@
   "sketch2vec/editing.py": "c19d2c9af55958f6bd84cc03ccd20dfef64375e9e503d1fdd3bbb2ace585aa65",
   "sketch2vec/ellipse_fit.py": "faf119c0e7bd4ac26014fabe0c5951528d530253600f0aa799724f119e078f71",
   "sketch2vec/batch_join.py": "6522e17c8bc75fd8358df1f791706dfc1ea2eb4b7bea14147344afd966808f97",
-  "sketch2vec/cad_consolidate.py": "67c153991cfc87f915a47f63305963eb47e484002bc542ceb4109fc071a47d2f"
+  "sketch2vec/cad_consolidate.py": "ebc912f1e9cdb0b2094238ef6bc8801130fc7b925c09ca05b9869c022ed30c6f",
+  "sketch2vec/cad_rectify.py": "5b156386fe2abaf83b759a8fab0d1e336423da29d73e930c4f5ad9c624312748"
 }

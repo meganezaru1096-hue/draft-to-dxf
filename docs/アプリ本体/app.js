@@ -15,20 +15,22 @@ window.requestDraftBridgeProposals=({requestId,width,height,pixels,model})=>{
   pendingBridgeModel=model;
   worker.postMessage({kind:'bridgeProposals',requestId,width,height,pixels},[pixels]);
 };
-function deskewCanvasInWorker(canvas,dpi,noise,token){
+function deskewCanvasInWorker(canvas,dpi,noise,token,{perspective=false}={}){
   return new Promise((resolve,reject)=>{
-    if(token!==conversionToken){resolve(0);return;}
+    if(token!==conversionToken){resolve({angle:0,perspectiveMethod:'none'});return;}
     const requestId=++deskewSeq;
     const ctx=canvas.getContext('2d'),imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
     const buffer=imageData.data.buffer;
     pendingDeskew.set(requestId,{resolve:data=>{
-      if(token!==conversionToken){resolve(0);return;}
-      if(data.pixels&&Math.abs(data.angle)>=1e-3){
+      if(token!==conversionToken){resolve({angle:0,perspectiveMethod:'none'});return;}
+      const method=data.perspectiveMethod||'none';
+      const angle=Number(data.angle)||0;
+      if(data.pixels&&(method!=='none'||Math.abs(angle)>=1e-3)){
         ctx.putImageData(new ImageData(new Uint8ClampedArray(data.pixels),data.width,data.height),0,0);
       }
-      resolve(Number(data.angle)||0);
+      resolve({angle,perspectiveMethod:method});
     },reject});
-    worker.postMessage({kind:'deskew',requestId,width:canvas.width,height:canvas.height,pixels:buffer,channels:4,dpi,noise},[buffer]);
+    worker.postMessage({kind:'deskew',requestId,width:canvas.width,height:canvas.height,pixels:buffer,channels:4,dpi,noise,perspective:!!perspective},[buffer]);
   });
 }
 window.workerSource=null;window.workerRuntimeParts=null;window.workerAppParts=null;
@@ -255,13 +257,16 @@ async function convertSelected(eventOrOptions=null){
     tracing=canvas.draftTraceCanvas||canvas;
     const dpi=canvas.draftDpi||(isPdf?300:Number(document.getElementById('dpi').value));
     if(!Number.isFinite(dpi)||dpi<1||dpi>9600)throw Error('出力解像度は1〜9600dpiで指定してください。');
-    let texts=canvas.draftTexts||[],deskewAngle=0;
+    let texts=canvas.draftTexts||[],deskewAngle=0,perspectiveMethod='none';
     const useAiPreprocess=(document.getElementById('preprocessMode')?.value==='ai')&&!canvas.draftPaths;
-    if((document.getElementById('textMode').value==='auto'&&!texts.length)||useAiPreprocess){
+    const usePerspective=(document.getElementById('perspectiveMode')?.value==='auto')&&!canvas.draftPaths&&!canvas.draftNativePaths;
+    if((document.getElementById('textMode').value==='auto'&&!texts.length)||useAiPreprocess||usePerspective){
       if(canvas.draftGrayPixels){const tmp=document.createElement('canvas');tmp.width=canvas.width;tmp.height=canvas.height;const ctx=tmp.getContext('2d'),data=ctx.createImageData(tmp.width,tmp.height),gray=new Uint8Array(canvas.draftGrayPixels);for(let i=0;i<gray.length;i++){data.data[i*4]=data.data[i*4+1]=data.data[i*4+2]=gray[i];data.data[i*4+3]=255;}ctx.putImageData(data,0,0);for(const key of ['draftDpi','draftTotalPages','draftImportNote','draftNativePaths'])if(canvas[key]!==undefined)tmp[key]=canvas[key];canvas=tmp;tracing=canvas;}
       if(!canvas.draftPaths&&!canvas.draftNativePaths){
-        deskewAngle=await deskewCanvasInWorker(canvas,dpi,Number(document.getElementById('noise').value),token);
+        const alignRes=await deskewCanvasInWorker(canvas,dpi,Number(document.getElementById('noise').value),token,{perspective:usePerspective});
         if(token!==conversionToken)return;
+        deskewAngle=alignRes.angle;
+        perspectiveMethod=alignRes.perspectiveMethod||'none';
       }
       if(document.getElementById('textMode').value==='auto'&&!texts.length){
         const includeVertical=!!document.getElementById('includeVerticalOcr')?.checked;
@@ -293,8 +298,10 @@ async function convertSelected(eventOrOptions=null){
       aiGrayBuffer=aiRes.grayU8.buffer;
       aiNote=`AI線復元（TinyLineUNet v3）適用：${aiRes.elapsedMs}ms（${aiRes.tilesTotal}タイル中 空${aiRes.tilesSkipped}スキップ）`;
     }
-    const mergedNote=[canvas.draftImportNote,aiNote].filter(Boolean).join(' / ')||undefined;
-    nextMetadata={name:file.name.replace(/\.[^.]+$/,'')+(isPdf||isTiff?'_p'+page:''),dpi,dirty:true,note:mergedNote,totalPages:canvas.draftTotalPages||null,texts,originalBackground:(texts.length||aiGrayBuffer)?canvas.toDataURL('image/png'):null};
+    const perspectiveNote=perspectiveMethod==='outer_frame'?'自動遠近補正（外枠台形補正）適用':perspectiveMethod==='vanishing_point'?'自動遠近補正（消失点補正）適用':(usePerspective?'自動遠近補正：遠近歪みなし（回転補正のみ）':null);
+    const mergedNote=[canvas.draftImportNote,perspectiveNote,aiNote].filter(Boolean).join(' / ')||undefined;
+    const preAligned=perspectiveMethod!=='none'||Math.abs(deskewAngle)>=1e-3;
+    nextMetadata={name:file.name.replace(/\.[^.]+$/,'')+(isPdf||isTiff?'_p'+page:''),dpi,dirty:true,note:mergedNote,totalPages:canvas.draftTotalPages||null,texts,originalBackground:(texts.length||aiGrayBuffer||preAligned)?canvas.toDataURL('image/png'):null};
     status.textContent='変換中…';
     if(canvas.draftPaths){
       const background=canvas.toDataURL('image/png');
@@ -304,12 +311,14 @@ async function convertSelected(eventOrOptions=null){
     const channels=aiGrayBuffer?1:(tracing.draftGrayPixels?1:4);
     const pixels=aiGrayBuffer||tracing.draftGrayPixels||tracing.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.buffer;
     const diagnostics=!!window.probeState.enableDiagnostics;
+    const ocrTextBoxes=texts.map(t=>{const b=DraftTexts.bounds(t);return {x0:b[0],y0:b[1],x1:b[2],y1:b[3],height:t.height};});
     worker.postMessage({
       kind:'image',width:canvas.width,height:canvas.height,pixels,channels,dpi,diagnostics,
       noise:Number(document.getElementById('noise').value),
       aiPreprocessed:!!aiGrayBuffer,
-      textAligned:texts.length>0||Math.abs(deskewAngle)>=1e-3||!!aiGrayBuffer,
+      textAligned:texts.length>0||preAligned||!!aiGrayBuffer,
       preDeskewedAngle:deskewAngle,
+      ocrTextBoxes,
       ...(canvas.draftNativePaths?{nativePaths:canvas.draftNativePaths,background:canvas.toDataURL('image/png')}:{})
     },[pixels]);
   }catch(error){

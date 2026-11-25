@@ -2,8 +2,9 @@
 window.DraftCandidateEngine={
   collect(paths,options){
     const G=DraftGeometry,o={threshold:5,gapThreshold:0,overlaps:false,overlapTolerance:.25,isolated:false,isolationDistance:3,junctions:false,endpointGaps:true,continuity:false,maxChecks:2000000,...options};
-    const result={items:[],buckets:{short:[],duplicate:[],overlap:[],isolated:[],gap:[],junction:[]},short:0,duplicate:0,overlap:0,isolated:0,gap:0,junction:0,gapIncomplete:false,incomplete:false,index:-1,checks:0};
-    const add=item=>{result[item.kind]++;if(result.items.length<500)result.items.push(item);if(result.buckets[item.kind].length<500)result.buckets[item.kind].push(item);};
+    const result={items:[],buckets:{short:[],duplicate:[],overlap:[],isolated:[],gap:[],junction:[]},deletionRefs:{short:[],duplicate:[],isolated:[]},short:0,duplicate:0,overlap:0,isolated:0,gap:0,junction:0,gapIncomplete:false,incomplete:false,index:-1,checks:0};
+    // The list is capped for rendering, not for an explicit batch selection.
+    const add=item=>{result[item.kind]++;if(result.items.length<500)result.items.push(item);if(result.buckets[item.kind].length<500)result.buckets[item.kind].push(item);if(result.deletionRefs[item.kind])result.deletionRefs[item.kind].push(item.ref);};
     const group=()=> 'geometry';
     const visible=()=>true;
     const eligible=()=>true;
@@ -12,7 +13,7 @@ window.DraftCandidateEngine={
       const ref=[pi,si],length=G.length(s),entry={s,ref,length,group:group(p),eligible:eligible(p),bounds:G.bounds(s),id:segments.length};segments.push(entry);
       if(entry.eligible){
         if(length<=o.threshold)add({kind:'short',ref,length});
-        if(s.type==='line'){entry.exact=JSON.stringify([entry.group,...[JSON.stringify(s.p0),JSON.stringify(s.p1)].sort()]);if(seen.has(entry.exact))add({kind:'duplicate',ref,reference:seen.get(entry.exact),length});else seen.set(entry.exact,ref);}
+        if(s.type==='line'){entry.exact=JSON.stringify([entry.group,p.line_style||'solid',...[JSON.stringify(s.p0),JSON.stringify(s.p1)].sort()]);if(seen.has(entry.exact))add({kind:'duplicate',ref,reference:seen.get(entry.exact),length});else seen.set(entry.exact,ref);}
       }
       if(G.closed(s))return;
       for(const endpoint of [0,1]){const point=G.point(s,endpoint),key=JSON.stringify([entry.group,...point]);counts.set(key,(counts.get(key)||0)+1);endpoints.push({entry,endpoint,point,key,id:endpoints.length});}

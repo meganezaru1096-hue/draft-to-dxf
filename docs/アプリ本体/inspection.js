@@ -9,6 +9,8 @@ window.DraftInspect={
     for(const [id,delta] of [['previousCandidate',-1],['nextCandidate',1]])document.getElementById(id).onclick=()=>this.focus(e,(e.inspection?.index??-1)+delta);
     for(const id of ['shortThreshold','gapThreshold','inspectGaps','inspectOverlap','overlapTolerance','inspectIsolated','isolationDistance','inspectJunctions','inspectContinuity'])document.getElementById(id).onchange=()=>{this.reset(e,'条件が変わりました。再検出してください。');this.update(e);e.draw();};
     document.getElementById('candidateFilter').onchange=()=>this.filter(e);
+    document.getElementById('selectCandidateBatch').onclick=()=>this.selectBatch(e);
+    document.getElementById('deleteCandidateBatch').onclick=()=>this.deleteBatch(e);
     document.getElementById('trimOverlap').onclick=()=>{
       const item=e.inspection?.items[e.inspection.index];if(e.busy||item?.kind!=='overlap')return;
       e.send({kind:'edit',action:'trimLine',refs:[item.ref],first:item.interval[0],second:item.interval[1]});
@@ -49,6 +51,42 @@ window.DraftInspect={
     }catch(_){this.reset(e,'図面を編集しました。候補を再検出してください。');}
   },
   collect(paths,threshold,gapThreshold=0,options={}){return DraftCandidateEngine.collect(paths,{threshold,gapThreshold,...options});},
+  batchTargets(result,kind){
+    if(!result)return new Map();
+    result.batchTargets??=new Map();
+    if(!result.batchTargets.has(kind)){
+      const targets=new Map(),kinds=kind==='all'?['short','isolated','duplicate']:[kind];
+      for(const key of kinds)for(const ref of result.deletionRefs?.[key]||[])targets.set(ref.join(':'),ref);
+      result.batchTargets.set(kind,targets);
+    }
+    return result.batchTargets.get(kind);
+  },
+  selectedBatch(e){
+    const batch=e.inspection?.batch;
+    if(!batch||batch.paths!==e.doc?.paths||batch.kind!==document.getElementById('candidateFilter').value||!e.selected.size)return null;
+    for(const key of e.selected)if(!batch.targets.has(key))return null;
+    return batch;
+  },
+  selectBatch(e){
+    if(e.busy||!e.doc||!e.inspection)return;
+    const result=e.inspection,kind=document.getElementById('candidateFilter').value,targets=this.batchTargets(result,kind);
+    if(!targets.size)return;
+    e.setMode('select');
+    result.batch={kind,targets,paths:e.doc.paths};result.index=-1;
+    e.selected=new Set(targets.keys());e.anchors.clear();
+    document.getElementById('candidateList').selectedIndex=-1;
+    document.getElementById('candidateDetail').textContent='候補をまとめて選択しました。残したい線はCtrl＋クリックで選択から外せます。図形はまだ変更していません。';
+    const shortcut=window.DraftSettings?.key('delete');
+    document.getElementById('status').textContent=`気になる線を${targets.size}本選択しました。原図と確認してから「選んだ候補を一括削除」${shortcut?'、または'+shortcut+'キー':''}で削除できます。`;
+    e.update();e.draw();e.canvas.focus({preventScroll:true});
+  },
+  deleteBatch(e){
+    if(e.busy||!e.doc)return;
+    const batch=this.selectedBatch(e);if(!batch)return;
+    const refs=[...e.selected].map(key=>batch.targets.get(key));
+    // One ordinary edit transaction: immediate application, one common Undo.
+    e.send({kind:'edit',action:'delete',refs,label:'気になる線の一括削除'});
+  },
   scan(e){
     if(e.busy||!e.doc)return;
     const threshold=Number(document.getElementById('shortThreshold').value);
@@ -67,6 +105,7 @@ window.DraftInspect={
     if(e.busy||!e.inspection)return;
     e.setMode('select');
     const result=e.inspection,kind=document.getElementById('candidateFilter').value,list=document.getElementById('candidateList');
+    result.batch=null;
     result.items=kind==='all'?result.allItems:result.buckets[kind];result.index=-1;e.selected.clear();e.anchors.clear();list.replaceChildren();
     result.items.forEach((item,i)=>list.add(new Option(`${i+1}. ${this.labels[item.kind]} (${item.length.toFixed(2)} px)`,String(i))));list.selectedIndex=-1;
     const total=Object.keys(this.labels).reduce((n,k)=>n+result[k],0),displayedTotal=kind==='all'?total:result[kind];
@@ -98,6 +137,14 @@ window.DraftInspect={
     document.getElementById('candidateList').disabled=busy||!result?.items.length;
     document.getElementById('previousCandidate').disabled=busy||!result||result.index<=0;
     document.getElementById('nextCandidate').disabled=busy||!result||result.index>=result.items.length-1;
+    const kind=document.getElementById('candidateFilter').value,targets=this.batchTargets(result,kind),batch=this.selectedBatch(e);
+    document.getElementById('selectCandidateBatch').disabled=busy||!targets.size;
+    document.getElementById('deleteCandidateBatch').disabled=busy||!batch;
+    document.getElementById('deleteCandidateBatch').textContent=batch?`選んだ候補 ${e.selected.size}本を一括削除`:'選んだ候補を一括削除';
+    const hint=document.getElementById('candidateBatchHint');
+    if(!result)hint.textContent='検出後、種類で絞ってまとめて選択できます。選択しただけでは削除しません。';
+    else if(!['all','short','isolated','duplicate'].includes(kind))hint.textContent='この種類は一括削除の対象外です。隙間・接続不足は補修、部分重複は「重複区間を削除」を使ってください。';
+    else hint.textContent=`${kind==='all'?'短い線・孤立した短い線・完全重複の':'この種類の'}${targets.size}本が対象です。${targets.size>500?'一覧の500件制限に関係なく、検出した全対象を選びます。':''}${result.incomplete?'検索は上限に達したため、検出できた候補のみが対象です。':''}細部・小円・寸法矢印が含まれる場合があります。削除は「元に戻す」1回で取り消せます。`;
   },
   draw(e,c){
     const item=e.inspection?.items[e.inspection.index];if(!['gap','junction','overlap'].includes(item?.kind)||e.mode!=='select'||!e.selected.has(item.ref.join(':')))return;
