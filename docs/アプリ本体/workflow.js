@@ -115,7 +115,7 @@ window.DraftWorkflow={
       const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');ctx.translate(-x,-y);DraftRotation.drawBackground(e,ctx);
       const rgba=ctx.getImageData(0,0,w,h).data;
       const useAi=!!document.getElementById('regionAiRestore')?.checked&&!!window.DraftPreprocessMl;
-      let pixels=rgba.buffer,channels=4;
+      let pixels=rgba.buffer,channels=4,aiJuncBytes=null,aiCurveBytes=null,aiSemanticBytes=null,aiUpstreamOptions=null;
       if(useAi){
         e.setBusy(true);
         try{
@@ -124,10 +124,14 @@ window.DraftWorkflow={
           const aiRes=await DraftPreprocessMl.restoreGray(srcGray,w,h,{progress:msg=>{document.getElementById('status').textContent=msg;}});
           if(!aiRes){e.setBusy(false);return;}
           pixels=aiRes.grayU8.buffer;channels=1;
+          aiJuncBytes=aiRes.juncU8?aiRes.juncU8.buffer:null;
+          aiCurveBytes=aiRes.curveU8?aiRes.curveU8.buffer:null;
+          aiSemanticBytes=aiRes.semanticU8?aiRes.semanticU8.buffer:null;
+          aiUpstreamOptions=window.DraftPreprocessMlModel?.metadata?.upstream||null;
         }finally{e.setBusy(false);}
       }
-      e.send({kind:'region',width:w,height:h,pixels,channels,aiPreprocessed:useAi,box:b,offset:[x,y],protection:e.protection,noise:Number(document.getElementById('regionNoise').value),dpi:Number(document.getElementById('dpi').value)||e.dpi||300});
-      document.getElementById('status').textContent=useAi?'指定範囲をAI線復元で再変換しています…':'指定範囲を再変換しています…';
+      e.send({kind:'region',width:w,height:h,pixels,channels,aiPreprocessed:useAi,aiJuncBytes,aiCurveBytes,aiSemanticBytes,aiUpstreamOptions,box:b,offset:[x,y],protection:e.protection,noise:Number(document.getElementById('regionNoise').value),dpi:Number(document.getElementById('dpi').value)||e.dpi||300});
+      document.getElementById('status').textContent=useAi?'指定範囲を高精度変換で再変換しています…':'指定範囲を再変換しています…';
     }catch(error){document.getElementById('regionHint').textContent=error.message;}
   },
   update(e){

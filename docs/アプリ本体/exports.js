@@ -16,13 +16,15 @@ window.DraftExport = (() => {
     if(!Number.isFinite(scale)||scale<1e-6||scale>1e6)throw Error('DXFの縮尺が不正です。');
     const w=doc.width*scale,h=doc.height*scale;
     const entityLines=[];
+    const layerColors={GEOMETRY:7,HATCH:8,CENTER_DASH:1,TEXT_ANNO:3},usedLayers=new Set();
     const texts=window.DraftTexts?DraftTexts.validate(doc.texts):[];
     const etag=(k,v)=>entityLines.push(String(k),String(v));
     let minX=0,minY=0,maxX=w,maxY=h;
     const track=(mx,my)=>{if(mx<minX)minX=mx;if(mx>maxX)maxX=mx;if(my<minY)minY=my;if(my>maxY)maxY=my;};
     const point=(p,base)=>{const mx=p[0]*scale,my=h-p[1]*scale;track(mx,my);etag(base,n(mx));etag(base+10,n(my));etag(base+20,0);};
     for(const p of doc.paths){
-      const style=DraftLineStyle.get(p),attributes=()=>{etag(6,style.name);etag(62,style.aci);};
+      const layer=Object.hasOwn(layerColors,p.layer)?p.layer:'GEOMETRY';
+      const style=DraftLineStyle.get(p),attributes=()=>{usedLayers.add(layer);etag(6,style.name);etag(62,layer==='GEOMETRY'?style.aci:256);};
       for(const s of p.segments){
         if(s.type==='ellipse'){
           // R12 has no ELLIPSE entity. Use a single closed 2D POLYLINE.
@@ -31,9 +33,9 @@ window.DraftExport = (() => {
           if(radius<1e-6)continue;
           const needed=Math.PI/(2*Math.asin(Math.sqrt(Math.min(1,0.02/(2*radius)))));
           const count=Math.min(2048,Math.max(24,4*Math.ceil(needed/4)));
-          etag(0,'POLYLINE');etag(8,'GEOMETRY');attributes();etag(66,1);etag(10,0);etag(20,0);etag(30,0);etag(70,129);
-          for(let i=0;i<count;i++){etag(0,'VERTEX');etag(8,'GEOMETRY');point(curve.at(i*2*Math.PI/count),10);}
-          etag(0,'SEQEND');etag(8,'GEOMETRY');
+          etag(0,'POLYLINE');etag(8,layer);attributes();etag(66,1);etag(10,0);etag(20,0);etag(30,0);etag(70,129);
+          for(let i=0;i<count;i++){etag(0,'VERTEX');etag(8,layer);point(curve.at(i*2*Math.PI/count),10);}
+          etag(0,'SEQEND');etag(8,layer);
           continue;
         }
         if(s.type==='line'){
@@ -41,7 +43,7 @@ window.DraftExport = (() => {
           if(Math.hypot(x1-x0,y1-y0)<1e-6)continue;
           const sx0=n(x0),sy0=n(y0),sx1=n(x1),sy1=n(y1);
           if(sx0===sx1&&sy0===sy1)continue;
-          etag(0,'LINE');etag(8,'GEOMETRY');attributes();
+          etag(0,'LINE');etag(8,layer);attributes();
           track(x0,y0);track(x1,y1);
           etag(10,sx0);etag(20,sy0);etag(30,0);etag(11,sx1);etag(21,sy1);etag(31,0);
           continue;
@@ -56,7 +58,7 @@ window.DraftExport = (() => {
           aStr=normDeg(a);bStr=normDeg(b);
           if(aStr===bStr)continue;
         }
-        etag(0,circle?'CIRCLE':'ARC');etag(8,'GEOMETRY');attributes();
+        etag(0,circle?'CIRCLE':'ARC');etag(8,layer);attributes();
         const cx=s.center[0]*scale,cy=h-s.center[1]*scale;
         track(cx-radiusMm,cy-radiusMm);track(cx+radiusMm,cy+radiusMm);
         etag(10,n(cx));etag(20,n(cy));etag(30,0);etag(40,n(radiusMm));
@@ -86,8 +88,10 @@ window.DraftExport = (() => {
     tag(0,'TABLE');tag(2,'LTYPE');tag(70,3);
     for(const [name,parts] of [['CONTINUOUS',[]],['DASHED',[4,-2]],['DASHDOT',[8,-2,.4,-2]]]){tag(0,'LTYPE');tag(2,name);tag(70,0);tag(3,name);tag(72,65);tag(73,parts.length);tag(40,n(parts.reduce((a,b)=>a+Math.abs(b),0)));for(const value of parts)tag(49,value);}
     tag(0,'ENDTAB');
-    tag(0,'TABLE');tag(2,'LAYER');tag(70,texts.length?3:2);
-    for(const [name,color] of [['0',7],['GEOMETRY',7],...(texts.length?[['TEXT',5]]:[])]){tag(0,'LAYER');tag(2,name);tag(70,0);tag(62,color);tag(6,'CONTINUOUS');}
+    if(!usedLayers.size)usedLayers.add('GEOMETRY');
+    const layers=[['0',7],...Object.entries(layerColors).filter(([name])=>usedLayers.has(name)),...(texts.length?[['TEXT',5]]:[])];
+    tag(0,'TABLE');tag(2,'LAYER');tag(70,layers.length);
+    for(const [name,color] of layers){tag(0,'LAYER');tag(2,name);tag(70,0);tag(62,color);tag(6,'CONTINUOUS');}
     tag(0,'ENDTAB');
     if(texts.length){tag(0,'TABLE');tag(2,'STYLE');tag(70,1);tag(0,'STYLE');tag(2,'JP');tag(70,0);tag(40,0);tag(41,1);tag(50,0);tag(71,0);tag(42,2.5);tag(3,'msgothic.ttc');tag(4,'');tag(0,'ENDTAB');}
     tag(0,'ENDSEC');tag(0,'SECTION');tag(2,'ENTITIES');

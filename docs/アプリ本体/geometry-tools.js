@@ -160,7 +160,7 @@ window.DraftGeometry={
     const corners=[[b[0],b[1]],[b[2],b[1]],[b[2],b[3]],[b[0],b[3]]];
     return corners.some((p,i)=>this.intersections(s,{type:'line',p0:p,p1:corners[(i+1)%4]}).length);
   },
-  allowed(path,s){const v=typeof document!=='undefined'?document.getElementById('selectFilter')?.value:'all';return !v||v==='all'||v===s.type;},
+  allowed(path,s){const v=typeof document!=='undefined'?document.getElementById('selectFilter')?.value:'all';return !v||v==='all'||(v.startsWith('layer:')?(path.layer||'GEOMETRY')===v.slice(6):v===s.type);},
   continuations(e,seedKey,{gap,offset,angle}){
     for(const [value,max] of [[gap,1000],[offset,100],[angle,60]])if(!Number.isFinite(value)||value<=0||value>max)throw Error('設定の「ダブルクリック選択」で隙間・許容幅・角度差を確認してください。');
     const selected=new Set(),index=this.spatialIndex(e.doc),[pi,si]=seedKey.split(':').map(Number),path=e.doc?.paths[pi],seed=path?.segments[si];

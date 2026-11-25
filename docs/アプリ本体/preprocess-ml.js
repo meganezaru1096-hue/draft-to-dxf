@@ -1,186 +1,112 @@
-// Offline parallel Web-Worker inference for TinyLineUNet v3 (4-ch Pure CAD Ink Restoration, INT8).
-// Lazy-loads preprocess-ml-model.js (~24KB) only when user selects AI線復元. Zero external requests.
+// Offline ONNX Runtime Web (WASM SIMD) inference for CADLineUNet v5-compatible 4/8-head models.
+// Lazy-loads preprocess-ml-model.js (~740KB) & shared ORT WASM runtime only when user selects 高精度変換. Zero external requests.
 window.DraftPreprocessMl = (() => {
   let modelPromise = null;
-  let activeWorkers = [];
+  let ortAssetsPromise = null;
+  let workerPromise = null;
+  let workers = [];
+  let workerModel = null;
+  let workerCount = 0;
+  let poolEpoch = 0;
+  let workerUrl = null;
+  let reqId = 0;
   let runSeq = 0;
+  const pending = new Map();
 
-  // Self-contained tile worker source (exact mathematical parity with tools/ml_preprocess_unet_v3.py).
-  const WORKER_SOURCE = `
-  function b64ToInt8(b64) {
-    const bin = atob(b64);
-    const u8 = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
-    return new Int8Array(u8.buffer);
+  const ORT_WORKER_SOURCE = `'use strict';
+let session = null, inName = '', outName = '', wasmBytesLocal = null;
+
+const _nativeFetch = self.fetch ? self.fetch.bind(self) : null;
+self.fetch = async (input, init) => {
+  const url = String(typeof input === 'string' ? input : (input && input.url) || '');
+  if (url.endsWith('ort-wasm-simd-threaded.wasm') && wasmBytesLocal) {
+    return new Response(wasmBytesLocal, { status: 200, headers: { 'content-type': 'application/wasm' } });
   }
-  function decodeModel(json) {
-    const layers = {};
-    for (const l of json.layers) {
-      const q = b64ToInt8(l.w_int8_b64);
-      const scales = l.w_scales;
-      const bias = Float32Array.from(l.bias);
-      const w = new Float32Array(q.length);
-      if (l.kind === 'dw3') {
-        for (let c = 0; c < l.cin; c++) {
-          const sc = scales[c], base = c * 9;
-          for (let k = 0; k < 9; k++) w[base + k] = q[base + k] * sc;
+  if (/^(blob:|data:)/.test(url) && _nativeFetch) return _nativeFetch(input, init);
+  throw new Error('AI preprocess external request blocked: ' + url);
+};
+
+async function gunzip(buf) {
+  const ds = new DecompressionStream('gzip');
+  const stream = new Blob([buf]).stream().pipeThrough(ds);
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+self.onmessage = async (ev) => {
+  const msg = ev.data || {};
+  try {
+    if (msg.type === 'init') {
+      const [ortJsBytes, mjsBytes, wasmBytes, onnxBytes] = await Promise.all([
+        gunzip(msg.files.ortJs),
+        gunzip(msg.files.ortMjs),
+        gunzip(msg.files.ortWasm),
+        gunzip(msg.files.modelGz)
+      ]);
+      wasmBytesLocal = wasmBytes;
+      const ortUrl = URL.createObjectURL(new Blob([ortJsBytes], { type: 'text/javascript' }));
+      try { importScripts(ortUrl); } finally { URL.revokeObjectURL(ortUrl); }
+      const mjsUrl = URL.createObjectURL(new Blob([mjsBytes], { type: 'text/javascript' }));
+      ort.env.wasm.numThreads = 1;
+      ort.env.wasm.proxy = false;
+      ort.env.wasm.wasmPaths = { mjs: mjsUrl, wasm: 'https://preprocess-local.invalid/ort-wasm-simd-threaded.wasm' };
+      session = await ort.InferenceSession.create(onnxBytes, {
+        executionProviders: ['wasm'],
+        graphOptimizationLevel: 'all'
+      });
+      inName = session.inputNames[0];
+      outName = session.outputNames[0];
+      URL.revokeObjectURL(mjsUrl);
+      self.postMessage({ type: 'ready', id: msg.id });
+    } else if (msg.type === 'tile') {
+      const inp = new Float32Array(msg.patch);
+      const tensor = new ort.Tensor('float32', inp, [1, 4, msg.ph, msg.pw]);
+      let outMap = null;
+      try {
+      const runStart = performance.now();
+      outMap = await session.run({ [inName]: tensor });
+      const runMs = performance.now() - runStart;
+      const outTensor = outMap[outName];
+      const plane = msg.ph * msg.pw;
+      const chOut = (outTensor.dims && outTensor.dims.length >= 2) ? outTensor.dims[1] : 2;
+      // ch0 = clean CAD ink probability; in v5 (4-head), ch2 = junction_prob, ch3 = curve_prob
+      const inkProb = new Float32Array(plane);
+      inkProb.set(outTensor.data.subarray(0, plane));
+      if (chOut >= 4) {
+        const juncProb = new Float32Array(plane);
+        const curveProb = new Float32Array(plane);
+        juncProb.set(outTensor.data.subarray(2 * plane, 3 * plane));
+        curveProb.set(outTensor.data.subarray(3 * plane, 4 * plane));
+        const message = { type: 'done', id: msg.id, probs: inkProb.buffer, junc: juncProb.buffer, curve: curveProb.buffer, runMs };
+        const transfer = [inkProb.buffer, juncProb.buffer, curveProb.buffer];
+        if (chOut >= 8) {
+          const semantic = new Float32Array(4 * plane);
+          semantic.set(outTensor.data.subarray(4 * plane, 8 * plane));
+          message.semantic = semantic.buffer;
+          transfer.push(semantic.buffer);
         }
+        self.postMessage(message, transfer);
       } else {
-        const cout = l.cout, rows = q.length / cout;
-        for (let r = 0; r < rows; r++) {
-          const base = r * cout;
-          for (let j = 0; j < cout; j++) w[base + j] = q[base + j] * scales[j];
-        }
+        self.postMessage({ type: 'done', id: msg.id, probs: inkProb.buffer, runMs }, [inkProb.buffer]);
       }
-      layers[l.name] = { name: l.name, kind: l.kind, cin: l.cin, cout: l.cout, dilation: l.dilation || 1, w, b: bias };
-    }
-    return { alpha: json.leaky_relu_alpha ?? 0.1, layers };
-  }
-  function conv3x3(x, h, w, layer) {
-    const cin = layer.cin, cout = layer.cout, wt = layer.w, b = layer.b;
-    const y = new Float32Array(h * w * cout);
-    const wm1 = w - 1, hm1 = h - 1;
-    for (let r = 0; r < h; r++) {
-      const r0 = r > 0 ? r - 1 : 0, r2 = r < hm1 ? r + 1 : hm1;
-      const rows = [r0, r, r2];
-      for (let c = 0; c < w; c++) {
-        const c0 = c > 0 ? c - 1 : 0, c2 = c < wm1 ? c + 1 : wm1;
-        const cols = [c0, c, c2];
-        const outBase = (r * w + c) * cout;
-        for (let o = 0; o < cout; o++) y[outBase + o] = b[o];
-        let kIdx = 0;
-        for (let ky = 0; ky < 3; ky++) {
-          const rr = rows[ky] * w;
-          for (let kx = 0; kx < 3; kx++) {
-            const inBase = (rr + cols[kx]) * cin;
-            for (let ic = 0; ic < cin; ic++) {
-              const xv = x[inBase + ic], wBase = (kIdx * cin + ic) * cout;
-              for (let o = 0; o < cout; o++) y[outBase + o] += xv * wt[wBase + o];
-            }
-            kIdx++;
-          }
-        }
+      } finally {
+        // ORT owns native WASM resources even when Tensor.data is a JS Float32Array.
+        if (outMap) for (const value of new Set(Object.values(outMap))) if (typeof value.dispose === 'function') value.dispose();
+        if (typeof tensor.dispose === 'function') tensor.dispose();
       }
     }
-    return y;
+  } catch (err) {
+    self.postMessage({ type: 'error', id: msg.id, message: String((err && err.message) || err) });
   }
-  function dwconv3x3(x, h, w, layer) {
-    const ch = layer.cin, d = layer.dilation, wt = layer.w, b = layer.b;
-    const y = new Float32Array(h * w * ch);
-    const wm1 = w - 1, hm1 = h - 1;
-    for (let r = 0; r < h; r++) {
-      let r0 = r - d; if (r0 < 0) r0 = 0;
-      let r2 = r + d; if (r2 > hm1) r2 = hm1;
-      const rows = [r0, r, r2];
-      for (let c = 0; c < w; c++) {
-        let c0 = c - d; if (c0 < 0) c0 = 0;
-        let c2 = c + d; if (c2 > wm1) c2 = wm1;
-        const cols = [c0, c, c2];
-        const outBase = (r * w + c) * ch;
-        for (let ic = 0; ic < ch; ic++) y[outBase + ic] = b[ic];
-        let kIdx = 0;
-        for (let ky = 0; ky < 3; ky++) {
-          const rr = rows[ky] * w;
-          for (let kx = 0; kx < 3; kx++) {
-            const inBase = (rr + cols[kx]) * ch;
-            for (let ic = 0; ic < ch; ic++) y[outBase + ic] += x[inBase + ic] * wt[ic * 9 + kIdx];
-            kIdx++;
-          }
-        }
-      }
-    }
-    return y;
-  }
-  function pw1x1(x, h, w, layer) {
-    const cin = layer.cin, cout = layer.cout, wt = layer.w, b = layer.b;
-    const n = h * w, y = new Float32Array(n * cout);
-    for (let i = 0; i < n; i++) {
-      const inBase = i * cin, outBase = i * cout;
-      for (let o = 0; o < cout; o++) y[outBase + o] = b[o];
-      for (let ic = 0; ic < cin; ic++) {
-        const xv = x[inBase + ic], wBase = ic * cout;
-        for (let o = 0; o < cout; o++) y[outBase + o] += xv * wt[wBase + o];
-      }
-    }
-    return y;
-  }
-  function lreluInPlace(a, alpha) { for (let i = 0; i < a.length; i++) if (a[i] < 0) a[i] *= alpha; return a; }
-  function addLrelu(a, res, alpha) {
-    const out = new Float32Array(a.length);
-    for (let i = 0; i < a.length; i++) { const v = a[i] + res[i]; out[i] = v >= 0 ? v : v * alpha; }
+};
+`;
+
+  function decodeBase64(b64) {
+    if (typeof Uint8Array.fromBase64 === 'function') return Uint8Array.fromBase64(b64);
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out;
   }
-  function avgpool2(x, h, w, ch) {
-    const nh = h >> 1, nw = w >> 1, y = new Float32Array(nh * nw * ch);
-    for (let r = 0; r < nh; r++) {
-      const r0 = (r * 2) * w, r1 = (r * 2 + 1) * w;
-      for (let c = 0; c < nw; c++) {
-        const c0 = c * 2, c1 = c0 + 1;
-        const i00 = (r0 + c0) * ch, i01 = (r0 + c1) * ch, i10 = (r1 + c0) * ch, i11 = (r1 + c1) * ch;
-        const o = (r * nw + c) * ch;
-        for (let k = 0; k < ch; k++) y[o + k] = 0.25 * (x[i00 + k] + x[i01 + k] + x[i10 + k] + x[i11 + k]);
-      }
-    }
-    return y;
-  }
-  function upsample2Concat(low, lh, lw, lc, skip, sc) {
-    const h = lh * 2, w = lw * 2, tc = lc + sc, y = new Float32Array(h * w * tc);
-    for (let r = 0; r < h; r++) {
-      const lr = r >> 1;
-      for (let c = 0; c < w; c++) {
-        const lBase = (lr * lw + (c >> 1)) * lc, sBase = (r * w + c) * sc, oBase = (r * w + c) * tc;
-        for (let k = 0; k < lc; k++) y[oBase + k] = low[lBase + k];
-        for (let k = 0; k < sc; k++) y[oBase + lc + k] = skip[sBase + k];
-      }
-    }
-    return y;
-  }
-  function forwardPatch(decoded, patchFeats, h, w) {
-    const L = decoded.layers, a = decoded.alpha;
-    const r0 = lreluInPlace(conv3x3(patchFeats, h, w, L.stem), a);
-    let z = pw1x1(dwconv3x3(r0, h, w, L.e1_dw), h, w, L.e1_pw);
-    const s1 = addLrelu(z, r0, a);
-    const h2 = h >> 1, w2 = w >> 1;
-    const p1 = avgpool2(s1, h, w, 16);
-    const r2a = lreluInPlace(pw1x1(dwconv3x3(p1, h2, w2, L.e2a_dw), h2, w2, L.e2a_pw), a);
-    z = pw1x1(dwconv3x3(r2a, h2, w2, L.e2b_dw), h2, w2, L.e2b_pw);
-    const s2 = addLrelu(z, r2a, a);
-    const h4 = h2 >> 1, w4 = w2 >> 1;
-    const p2 = avgpool2(s2, h2, w2, 24);
-    const rba = lreluInPlace(pw1x1(dwconv3x3(p2, h4, w4, L.ba_dw), h4, w4, L.ba_pw), a);
-    z = pw1x1(dwconv3x3(rba, h4, w4, L.bb_dw), h4, w4, L.bb_pw);
-    const rbb = addLrelu(z, rba, a);
-    z = pw1x1(dwconv3x3(rbb, h4, w4, L.bc_dw), h4, w4, L.bc_pw);
-    const bot = addLrelu(z, rbb, a);
-    const cat2 = upsample2Concat(bot, h4, w4, 36, s2, 24);
-    const rd2 = lreluInPlace(pw1x1(cat2, h2, w2, L.d2_red), a);
-    z = pw1x1(dwconv3x3(rd2, h2, w2, L.d2_dw), h2, w2, L.d2_pw);
-    const d2 = addLrelu(z, rd2, a);
-    const cat1 = upsample2Concat(d2, h2, w2, 20, s1, 16);
-    const rd1 = lreluInPlace(pw1x1(cat1, h, w, L.d1_red), a);
-    z = pw1x1(dwconv3x3(rd1, h, w, L.d1_dw), h, w, L.d1_pw);
-    const d1 = addLrelu(z, rd1, a);
-    const logits = pw1x1(d1, h, w, L.head);
-    const probs = new Float32Array(h * w);
-    for (let i = 0; i < logits.length; i++) {
-      let v = logits[i]; if (v > 30) v = 30; else if (v < -30) v = -30;
-      probs[i] = 1.0 / (1.0 + Math.exp(-v));
-    }
-    return probs;
-  }
-  let decoded = null;
-  onmessage = ({ data }) => {
-    if (data.kind === 'init') {
-      decoded = decodeModel(data.modelJson);
-      postMessage({ kind: 'ready' });
-      return;
-    }
-    if (data.kind === 'tile') {
-      const probs = forwardPatch(decoded, new Float32Array(data.patch), data.th, data.tw);
-      postMessage({ kind: 'done', tileIdx: data.tileIdx, probs: probs.buffer }, [probs.buffer]);
-    }
-  };
-  `;
 
   function boxMeanEdge(src, w, h, radius) {
     const tmp = new Float32Array(w * h);
@@ -218,45 +144,74 @@ window.DraftPreprocessMl = (() => {
     return out;
   }
 
-  function extractFeaturesV3(grayU8, w, h) {
+  // Exact O(1)-amortized separable 2D sliding-window maximum (BORDER_REPLICATE parity with cv2.dilate).
+  function maxFilterEdge(src, w, h, radius) {
+    const tmp = new Float32Array(w * h);
+    const out = new Float32Array(w * h);
+    const dqIdx = new Int32Array(Math.max(w, h) + 2 * radius + 4);
+    const dqVal = new Float32Array(Math.max(w, h) + 2 * radius + 4);
+
+    for (let y = 0; y < h; y++) {
+      const row = y * w;
+      let head = 0, tail = 0;
+      for (let i = -radius; i < w + radius; i++) {
+        const sx = i < 0 ? 0 : (i >= w ? w - 1 : i);
+        const v = src[row + sx];
+        while (tail > head && dqVal[tail - 1] <= v) tail--;
+        dqIdx[tail] = i;
+        dqVal[tail] = v;
+        tail++;
+        const x = i - radius;
+        if (x >= 0) {
+          const minIdx = x - radius;
+          while (dqIdx[head] < minIdx) head++;
+          tmp[row + x] = dqVal[head];
+        }
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      let head = 0, tail = 0;
+      for (let i = -radius; i < h + radius; i++) {
+        const sy = i < 0 ? 0 : (i >= h ? h - 1 : i);
+        const v = tmp[sy * w + x];
+        while (tail > head && dqVal[tail - 1] <= v) tail--;
+        dqIdx[tail] = i;
+        dqVal[tail] = v;
+        tail++;
+        const y = i - radius;
+        if (y >= 0) {
+          const minIdx = y - radius;
+          while (dqIdx[head] < minIdx) head++;
+          out[y * w + x] = dqVal[head];
+        }
+      }
+    }
+    return out;
+  }
+
+  // Exact bit-parity with tools/ml_preprocess_unet_v4_onnx.py extract_input_features_v4 (planar 4 x H x W).
+  function extractFeaturesV4(grayU8, w, h) {
     const n = w * h;
     const g = new Float32Array(n);
     for (let i = 0; i < n; i++) g[i] = grayU8[i];
-    const m15 = boxMeanEdge(g, w, h, 7);
-    const m45 = boxMeanEdge(g, w, h, 22);
-    const ch1 = new Float32Array(n);
-    const feats = new Float32Array(n * 4);
-    const inv255 = 1.0 / 255.0, inv95 = 1.0 / 95.0, inv115 = 1.0 / 115.0;
+    const m19 = boxMeanEdge(g, w, h, 9);
+    const m63 = boxMeanEdge(g, w, h, 31);
+    const w15 = maxFilterEdge(g, w, h, 7);
+    const feats = new Float32Array(4 * n);
+    const inv255 = 1.0 / 255.0, inv85 = 1.0 / 85.0, inv110 = 1.0 / 110.0, inv100 = 1.0 / 100.0;
+    const o1 = n, o2 = 2 * n, o3 = 3 * n;
     for (let i = 0; i < n; i++) {
       const gi = g[i];
-      const v0 = (255.0 - gi) * inv255;
-      let v1 = (m15[i] - gi) * inv95;
+      feats[i] = (255.0 - gi) * inv255;
+      let v1 = (m19[i] - gi) * inv85;
       if (v1 < 0) v1 = 0; else if (v1 > 1) v1 = 1;
-      let v2 = (m45[i] - gi) * inv115;
+      let v2 = (m63[i] - gi) * inv110;
       if (v2 < 0) v2 = 0; else if (v2 > 1) v2 = 1;
-      ch1[i] = v1;
-      const o = i * 4;
-      feats[o] = v0; feats[o + 1] = v1; feats[o + 2] = v2;
-    }
-    const inv7 = 1.0 / 7.0, wm1 = w - 1, hm1 = h - 1;
-    for (let y = 0; y < h; y++) {
-      const yRow = y * w;
-      for (let x = 0; x < w; x++) {
-        let sh = 0, sv = 0, sd1 = 0, sd2 = 0;
-        for (let k = -3; k <= 3; k++) {
-          let xk = x + k; if (xk < 0) xk = 0; else if (xk > wm1) xk = wm1;
-          let yk = y + k; if (yk < 0) yk = 0; else if (yk > hm1) yk = hm1;
-          let xm = x - k; if (xm < 0) xm = 0; else if (xm > wm1) xm = wm1;
-          sh += ch1[yRow + xk];
-          sv += ch1[yk * w + x];
-          sd1 += ch1[yk * w + xk];
-          sd2 += ch1[yk * w + xm];
-        }
-        let best = sh > sv ? sh : sv;
-        if (sd1 > best) best = sd1;
-        if (sd2 > best) best = sd2;
-        feats[(yRow + x) * 4 + 3] = best * inv7;
-      }
+      let v3 = (w15[i] - gi) * inv100;
+      if (v3 < 0) v3 = 0; else if (v3 > 1) v3 = 1;
+      feats[o1 + i] = v1;
+      feats[o2 + i] = v2;
+      feats[o3 + i] = v3;
     }
     return feats;
   }
@@ -268,23 +223,115 @@ window.DraftPreprocessMl = (() => {
     modelPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = src;
-      s.onload = () => window.DraftPreprocessMlModel ? resolve(window.DraftPreprocessMlModel) : reject(Error('AI線復元モデルを読み込めません。'));
-      s.onerror = () => reject(Error('AI線復元モデルの読み込みに失敗しました。'));
+      s.onload = () => window.DraftPreprocessMlModel ? resolve(window.DraftPreprocessMlModel) : reject(Error('高精度変換モデルを読み込めません。'));
+      s.onerror = () => reject(Error('高精度変換モデルの読み込みに失敗しました。'));
       document.head.appendChild(s);
     }).catch(err => { modelPromise = null; throw err; });
     return modelPromise;
   }
 
-  function stopWorkers() {
-    for (const w of activeWorkers) {
-      try { w.terminate(); } catch (_) {}
+  function ensureOrtAssets() {
+    if (window.draftOcrAssets) return Promise.resolve(window.draftOcrAssets);
+    if (ortAssetsPromise) return ortAssetsPromise;
+    ortAssetsPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'ocr-assets.js';
+      s.onload = () => window.draftOcrAssets ? resolve(window.draftOcrAssets) : reject(Error('ONNXランタイムを読み込めません。'));
+      s.onerror = () => reject(Error('ONNXランタイムの読み込みに失敗しました。'));
+      document.head.appendChild(s);
+    }).catch(err => { ortAssetsPromise = null; throw err; });
+    return ortAssetsPromise;
+  }
+
+  function callWorker(target, msg, transfer = []) {
+    return new Promise((resolve, reject) => {
+      const id = ++reqId;
+      pending.set(id, { resolve, reject });
+      target.postMessage({ ...msg, id }, transfer);
+    });
+  }
+
+  function resetWorker(reason = null) {
+    poolEpoch++;
+    for (const target of workers) try { target.terminate(); } catch (_) {}
+    workers = [];
+    if (workerUrl) {
+      URL.revokeObjectURL(workerUrl);
+      workerUrl = null;
     }
-    activeWorkers = [];
+    workerPromise = null;
+    workerModel = null;
+    workerCount = 0;
+    if (pending.size) {
+      for (const [, entry] of pending) entry.reject(Error(reason || '高精度変換ワーカーを再初期化しました。'));
+      pending.clear();
+    }
+  }
+
+  async function ensureWorker(modelJson, progress, count) {
+    if (workerPromise && workerModel === modelJson && workerCount === count) return workerPromise;
+    if (workerPromise) resetWorker();
+    workerModel = modelJson;
+    workerCount = count;
+    const epoch = poolEpoch;
+    workerPromise = (async () => {
+      progress('高精度変換（ONNX WASM SIMD）を準備しています…');
+      const rawAssets = await ensureOrtAssets();
+      const fileMap = rawAssets?.files || rawAssets;
+      const ortJs = decodeBase64(fileMap['ort.wasm.min.js.gz']);
+      const ortMjs = decodeBase64(fileMap['ort-wasm-simd-threaded.mjs.gz']);
+      const ortWasm = decodeBase64(fileMap['ort-wasm-simd-threaded.wasm.gz']);
+      const modelGz = decodeBase64(modelJson.onnx_gz_b64);
+      if (epoch !== poolEpoch) throw Error('高精度変換モデルの初期化を中止しました。');
+
+      workerUrl = URL.createObjectURL(new Blob([ORT_WORKER_SOURCE], { type: 'text/javascript' }));
+      const created = Array.from({length:count}, () => new Worker(workerUrl));
+      workers = created;
+      await Promise.all(created.map(target => {
+      target.onmessage = (ev) => {
+        const msg = ev.data || {};
+        const entry = pending.get(msg.id);
+        if (!entry) return;
+        pending.delete(msg.id);
+        if (msg.type === 'error') entry.reject(Error(msg.message || '高精度変換ワーカーでエラーが発生しました。'));
+        else entry.resolve(msg);
+      };
+      target.onerror = (err) => {
+        if (epoch === poolEpoch) resetWorker(err.message || '高精度変換ワーカーが停止しました。');
+      };
+      // Independent one-thread SIMD sessions: no SharedArrayBuffer or cross-origin isolation required.
+      const files = {ortJs:ortJs.slice().buffer, ortMjs:ortMjs.slice().buffer,
+        ortWasm:ortWasm.slice().buffer, modelGz:modelGz.slice().buffer};
+      return callWorker(target, {type:'init',files},Object.values(files));
+      }));
+      return created;
+    })().catch(err => {
+      if (epoch === poolEpoch) resetWorker();
+      throw err;
+    });
+    return workerPromise;
   }
 
   function cancel() {
     runSeq++;
-    stopWorkers();
+  }
+
+  function tileSchedule(width, height, {tile=384,overlap=48,edge_mode='legacy'}={}) {
+    if (!Number.isInteger(tile) || tile < 8 || tile > 2048 || !Number.isInteger(overlap) || overlap < 0 || overlap >= tile) throw Error('AIタイルの大きさ・重なりが不正です。');
+    if (!['legacy','ragged'].includes(edge_mode)) throw Error('未対応のAIタイル境界方式です。');
+    const starts = length => {
+      const positions = [0], stride=tile-overlap;
+      if (edge_mode === 'ragged') {
+        while (positions[positions.length-1]+tile < length) positions.push(positions[positions.length-1]+stride);
+      } else {
+        for(let p=stride;p<=Math.max(0,length-tile);p+=stride)positions.push(p);
+        if(positions[positions.length-1]+tile<length)positions.push(Math.max(0,length-tile));
+      }
+      return positions;
+    };
+    const jobs=[];
+    for(const y0 of starts(height))for(const x0 of starts(width))jobs.push({y0,x0,th:Math.min(tile,height-y0),tw:Math.min(tile,width-x0)});
+    return jobs;
   }
 
   async function restoreGray(grayU8, width, height, opts = {}) {
@@ -292,16 +339,24 @@ window.DraftPreprocessMl = (() => {
     const t0 = performance.now();
     const progress = opts.progress || (() => {});
     const cancelled = opts.cancelled || (() => false);
-    const tile = opts.tile || 256;
-    const overlap = opts.overlap || 32;
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width<1 || height<1 || width*height>40000000 || grayU8.length!==width*height) throw Error('高精度変換の画像サイズが不正です。');
 
-    progress('AI線復元モデルを読み込んでいます…');
+    progress('高精度変換モデルを読み込んでいます…');
     const modelJson = await ensureModel();
     if (seq !== runSeq || cancelled()) return null;
-    if (modelJson.format !== 'draft-to-dxf-tiny-line-unet' || modelJson.version !== 3) {
-      throw Error('未対応のAI線復元モデル形式です。');
+    const isV5 = modelJson.format === 'draft-to-dxf-cadline-unet-v5-onnx' && modelJson.version === 5;
+    const isV4 = modelJson.format === 'draft-to-dxf-cadline-unet-onnx' && modelJson.version === 4;
+    if ((!isV5 && !isV4) || !modelJson.onnx_gz_b64) {
+      throw Error('未対応の高精度変換モデル形式です。');
     }
-    const threshold = opts.threshold ?? (modelJson.metadata?.recommended_threshold ?? 0.50);
+    const hasStructHeads = isV5 || (modelJson.channels_out >= 4);
+    const hasSemanticHeads = modelJson.channels_out >= 8;
+    const meta=modelJson.metadata||{};
+    const tile=opts.tile??meta.tile??384,overlap=opts.overlap??meta.overlap??48;
+    const edgeMode=opts.edge_mode??(opts.ragged===undefined?null:(opts.ragged?'ragged':'legacy'))??meta.edge_mode??(meta.ragged?'ragged':'legacy');
+    const requestedWorkers=opts.workers??meta.workers??1;
+    if (![1,2].includes(requestedWorkers)) throw Error('AIワーカー数は1または2で指定してください。');
+    const threshold = opts.threshold ?? (modelJson.metadata?.recommended_threshold ?? 0.31);
 
     // Handle light-lines-on-dark-background blueprints cleanly by auto-inverting before UNet
     let workGray = grayU8;
@@ -314,147 +369,144 @@ window.DraftPreprocessMl = (() => {
       for (let i = 0; i < grayU8.length; i++) workGray[i] = 255 - grayU8[i];
     }
 
-    progress('AI線復元：特徴量を計算しています…');
-    const feats = extractFeaturesV3(workGray, width, height);
+    progress('高精度変換：特徴量を計算しています…');
+    const feats = extractFeaturesV4(workGray, width, height);
     if (seq !== runSeq || cancelled()) return null;
 
-    const out = new Float32Array(width * height);
-    const weight = new Float32Array(width * height);
-    const stride = tile - overlap;
-
-    const ys = [];
-    for (let y = 0; y <= Math.max(0, height - tile); y += stride) ys.push(y);
-    if (!ys.length) ys.push(0);
-    if (ys[ys.length - 1] + tile < height) ys.push(Math.max(0, height - tile));
-    const xs = [];
-    for (let x = 0; x <= Math.max(0, width - tile); x += stride) xs.push(x);
-    if (!xs.length) xs.push(0);
-    if (xs[xs.length - 1] + tile < width) xs.push(Math.max(0, width - tile));
+    const n = width * height;
+    const out = new Float32Array(n);
+    const outJunc = hasStructHeads ? new Float32Array(n) : null;
+    const outCurve = hasStructHeads ? new Float32Array(n) : null;
+    const outSemantic = hasSemanticHeads ? new Float32Array(4*n) : null;
+    const weight = new Float32Array(n);
 
     const queue = [];
     let tilesTotal = 0, tilesSkipped = 0;
-    for (const y0 of ys) {
-      for (const x0 of xs) {
+    const o1 = n, o3 = 3 * n;
+
+    for (const job of tileSchedule(width,height,{tile,overlap,edge_mode:edgeMode})) {
+        const {y0,x0,th,tw}=job;
         tilesTotal++;
-        const y1 = Math.min(height, y0 + tile), x1 = Math.min(width, x0 + tile);
-        const ph = y1 - y0, pw = x1 - x0;
-        const m = Math.min(overlap >> 1, ph >> 2, pw >> 2);
-        const wy = new Float32Array(ph).fill(1.0);
-        const wx = new Float32Array(pw).fill(1.0);
-        if (m > 0) {
-          for (let i = 0; i < m; i++) {
-            const ramp = m > 1 ? 0.05 + 0.95 * (i / (m - 1)) : 1.0;
-            if (y0 > 0) wy[i] = ramp;
-            if (y0 + ph < height) wy[ph - 1 - i] = ramp;
-            if (x0 > 0) wx[i] = ramp;
-            if (x0 + pw < width) wx[pw - 1 - i] = ramp;
-          }
-        }
-        let max1 = 0, max2 = 0;
-        for (let r = 0; r < ph; r++) {
-          const base = ((y0 + r) * width + x0) * 4;
-          for (let c = 0; c < pw; c++) {
-            const v1 = feats[base + c * 4 + 1], v2 = feats[base + c * 4 + 2];
+        let max0 = 0, max1 = 0, max3 = 0;
+        for (let r = 0; r < th; r++) {
+          const base = (y0 + r) * width + x0;
+          for (let c = 0; c < tw; c++) {
+            const idx = base + c;
+            const v0 = feats[idx], v1 = feats[o1 + idx], v3 = feats[o3 + idx];
+            if (v0 > max0) max0 = v0;
             if (v1 > max1) max1 = v1;
-            if (v2 > max2) max2 = v2;
+            if (v3 > max3) max3 = v3;
           }
         }
-        if (max1 < 0.08 && max2 < 0.08) {
+        if (max1 < 0.06 && max3 < 0.06 && max0 < 0.14) {
           tilesSkipped++;
-          for (let r = 0; r < ph; r++) {
-            const rowOut = (y0 + r) * width + x0, wyr = wy[r];
-            for (let c = 0; c < pw; c++) weight[rowOut + c] += wyr * wx[c];
+          for (let r = 0; r < th; r++) {
+            const rowOut = (y0 + r) * width + x0;
+            for (let c = 0; c < tw; c++) weight[rowOut + c] += 1.0;
           }
           continue;
         }
-        queue.push({ y0, x0, ph, pw, wy, wx });
-      }
+        queue.push({ y0, x0, th, tw });
     }
 
-    if (queue.length > 0) {
-      const workerUrl = URL.createObjectURL(new Blob([WORKER_SOURCE], { type: 'text/javascript' }));
-      const nWorkers = Math.min(4, Math.max(1, navigator.hardwareConcurrency || 2), queue.length);
-      stopWorkers();
-      try {
-        await new Promise((resolve, reject) => {
-          let nextIdx = 0, doneCount = 0, finished = false;
-          const finish = (err) => {
-            if (finished) return;
-            finished = true;
-            stopWorkers();
-            if (err) reject(err); else resolve();
-          };
-          const dispatch = (worker) => {
-            if (finished || seq !== runSeq || cancelled()) { finish(); return; }
-            if (nextIdx >= queue.length) return;
-            const tileIdx = nextIdx++;
-            const job = queue[tileIdx];
-            const padH = (4 - (job.ph % 4)) % 4, padW = (4 - (job.pw % 4)) % 4;
-            const th = job.ph + padH, tw = job.pw + padW;
-            const patch = new Float32Array(th * tw * 4);
-            for (let r = 0; r < th; r++) {
-              const sr = job.y0 + (r < job.ph ? r : job.ph - 1);
-              for (let c = 0; c < tw; c++) {
-                const sc = job.x0 + (c < job.pw ? c : job.pw - 1);
-                const src = (sr * width + sc) * 4, dst = (r * tw + c) * 4;
-                patch[dst] = feats[src]; patch[dst + 1] = feats[src + 1];
-                patch[dst + 2] = feats[src + 2]; patch[dst + 3] = feats[src + 3];
-              }
-            }
-            worker.postMessage({ kind: 'tile', tileIdx, th, tw, patch: patch.buffer }, [patch.buffer]);
-          };
-          for (let wi = 0; wi < nWorkers; wi++) {
-            const w = new Worker(workerUrl);
-            activeWorkers.push(w);
-            w.onerror = (ev) => finish(Error(ev.message || 'AI線復元ワーカーでエラーが発生しました。'));
-            w.onmessage = ({ data }) => {
-              if (finished || seq !== runSeq || cancelled()) { finish(); return; }
-              if (data.kind === 'ready') {
-                dispatch(w);
-              } else if (data.kind === 'done') {
-                const job = queue[data.tileIdx];
-                const probs = new Float32Array(data.probs);
-                const tw = job.pw + ((4 - (job.pw % 4)) % 4);
-                for (let r = 0; r < job.ph; r++) {
-                  const rowOut = (job.y0 + r) * width + job.x0, rowP = r * tw, wyr = job.wy[r];
-                  for (let c = 0; c < job.pw; c++) {
-                    const b = wyr * job.wx[c];
-                    out[rowOut + c] += probs[rowP + c] * b;
-                    weight[rowOut + c] += b;
-                  }
-                }
-                doneCount++;
-                const pct = Math.round((doneCount / queue.length) * 100);
-                progress(`AI線復元を実行中… ${pct}%（${doneCount}/${queue.length}タイル・空${tilesSkipped}スキップ）`);
-                if (doneCount >= queue.length) finish();
-                else dispatch(w);
-              }
-            };
-            w.postMessage({ kind: 'init', modelJson });
-          }
-        });
-      } finally {
-        URL.revokeObjectURL(workerUrl);
-        stopWorkers();
+    const featureMs=performance.now()-t0;
+    const initStart=performance.now();
+    let pool=[];
+    if (queue.length) try { pool=await ensureWorker(modelJson,progress,Math.min(requestedWorkers,queue.length)); }
+    catch(err){if(seq!==runSeq||cancelled())return null;throw err;}
+    const initMs=performance.now()-initStart,inferenceStart=performance.now();
+    let sessionRunMs=0,processedPixels=0;
+    const runTile = (target,job) => {
+      const {y0,x0,th,tw}=job;
+      const ph=((th+7)>>3)<<3,pw=((tw+7)>>3)<<3,plane=ph*pw;
+      processedPixels+=plane;
+      const patch=new Float32Array(4*plane);
+      for(let ch=0;ch<4;ch++)for(let r=0;r<ph;r++){
+        const src=ch*n+(y0+Math.min(r,th-1))*width,dst=ch*plane+r*pw;
+        for(let c=0;c<pw;c++)patch[dst+c]=feats[src+x0+Math.min(c,tw-1)];
       }
+      return callWorker(target,{type:'tile',ph,pw,patch:patch.buffer},[patch.buffer]).then(res=>({job,res,pw,plane}));
+    };
+    for (let qi = 0; qi < queue.length; qi+=pool.length) {
+      if (seq !== runSeq || cancelled()) return null;
+      let batch;
+      try {batch=await Promise.all(queue.slice(qi,qi+pool.length).map((job,i)=>runTile(pool[i],job)));}
+      catch(err){if(seq!==runSeq||cancelled())return null;throw err;}
+      // Always accumulate in queue order, not completion order. Pool1 and pool2 stay byte-identical.
+      for(const {job,res,pw,plane} of batch){
+      const { y0, x0, th, tw } = job;
+      if (seq !== runSeq || cancelled()) return null;
+      sessionRunMs+=res.runMs||0;
+      const probs = new Float32Array(res.probs);
+      const juncTile = (outJunc && res.junc) ? new Float32Array(res.junc) : null;
+      const curveTile = (outCurve && res.curve) ? new Float32Array(res.curve) : null;
+      const semanticTile=(outSemantic&&res.semantic)?new Float32Array(res.semantic):null;
+      const wy = new Float32Array(th).fill(1.0);
+      const wx = new Float32Array(tw).fill(1.0);
+      const m = Math.min(overlap >> 1, th >> 2, tw >> 2);
+      if (m > 1) {
+        for (let i = 0; i < m; i++) {
+          const ramp = 0.15 + 0.85 * (i / (m - 1));
+          if (y0 > 0) wy[i] = ramp;
+          if (y0 + th < height) wy[th - 1 - i] = ramp;
+          if (x0 > 0) wx[i] = ramp;
+          if (x0 + tw < width) wx[tw - 1 - i] = ramp;
+        }
+      }
+      for (let r = 0; r < th; r++) {
+        const rowOut = (y0 + r) * width + x0, rowP = r * pw, wyr = wy[r];
+        for (let c = 0; c < tw; c++) {
+          const b = wyr * wx[c];
+          const idxO = rowOut + c, idxP = rowP + c;
+          out[idxO] += probs[idxP] * b;
+          if (juncTile) outJunc[idxO] += juncTile[idxP] * b;
+          if (curveTile) outCurve[idxO] += curveTile[idxP] * b;
+          if (semanticTile) for(let ch=0;ch<4;ch++)outSemantic[ch*n+idxO]+=semanticTile[ch*plane+idxP]*b;
+          weight[idxO] += b;
+        }
+      }
+      }
+      const done=Math.min(qi+pool.length,queue.length),pct=Math.round(done/queue.length*100);
+      progress(`高精度変換（ONNX）を実行中… ${pct}%（${done}/${queue.length}タイル・空${tilesSkipped}スキップ）`);
     }
 
     if (seq !== runSeq || cancelled()) return null;
-    const cleanGray = new Uint8Array(width * height);
-    for (let i = 0; i < cleanGray.length; i++) {
-      const p = out[i] / Math.max(weight[i], 1e-6);
+    const cleanGray = new Uint8Array(n);
+    const juncU8 = outJunc ? new Uint8Array(n) : null;
+    const curveU8 = outCurve ? new Uint8Array(n) : null;
+    const semanticU8 = outSemantic ? new Uint8Array(4*n) : null;
+    for (let i = 0; i < n; i++) {
+      const invW = 1.0 / Math.max(weight[i], 1e-6);
+      const p = out[i] * invW;
       cleanGray[i] = p >= threshold ? 0 : 255;
+      if (juncU8) juncU8[i] = Math.max(0, Math.min(255, Math.round(outJunc[i] * invW * 255)));
+      if (curveU8) curveU8[i] = Math.max(0, Math.min(255, Math.round(outCurve[i] * invW * 255)));
+      if (semanticU8) for(let ch=0;ch<4;ch++)semanticU8[ch*n+i]=Math.max(0,Math.min(255,Math.round(outSemantic[ch*n+i]*invW*255)));
     }
     return {
       grayU8: cleanGray,
+      juncU8,
+      curveU8,
+      semanticU8,
       width,
       height,
       tilesTotal,
       tilesSkipped,
+      workers:pool.length,
+      tile,
+      overlap,
+      edgeMode,
+      processedPixels,
+      featureMs:Math.round(featureMs),
+      initMs:Math.round(initMs),
+      inferenceMs:Math.round(performance.now()-inferenceStart),
+      sessionRunMs:Math.round(sessionRunMs),
       invertedInput,
+      modelVersion: modelJson.version,
+      modelName: meta.model_name || meta.model || (isV5 ? 'CADLineUNet v5.2 (4-head ONNX)' : 'CADLineUNet v4 (ONNX)'),
       elapsedMs: Math.round(performance.now() - t0),
     };
   }
 
-  return { ensureModel, restoreGray, cancel };
+  return { ensureModel, restoreGray, cancel, _extractFeaturesV4: extractFeaturesV4, _tileSchedule:tileSchedule };
 })();
