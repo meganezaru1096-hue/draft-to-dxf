@@ -1,12 +1,12 @@
 {
-  "parity_diagnostics.py": "36335e154c9486e1106de6ecb22455b08133ce199252487310b8634a10f043b5",
+  "parity_diagnostics.py": "e42ecd35ff31bfb79899b10883a0edf005bd8acfbeec1774b1f02a4f95eeec5e",
   "contour_compat.py": "1b4ca7b6e84a316ce1619b38c359caf13792bd76ddb0d85e7c69d65231a9bd43",
   "rotation_compat.py": "93e5c53e4ea840bba292534f60b4882180c18c4911cb5bc93d25e8b94627e75e",
-  "document_bridge.py": "3115828a9dae7aa397f1788d4b5088f23f5ff51c9f0dd1423fc3a08e21bff9bf",
+  "document_bridge.py": "d23f8ed5767aacf1bd2e11633c81ef935f5d514a6736d2478e1ead8ca8c12598",
   "ml_bridge_runtime.py": "d610a64599dbdc16e8b9cfc2eea61477074e23daa4aefdf165146e49c5c56a45",
   "sketch2vec/__init__.py": "4f54017d24a11d6852c959b36fb960bfd02652b90b3927ba216914da85c7da44",
   "sketch2vec/params.py": "481115988c68bb9e935ba1c13e1c880757ee163d892c4dc558a3828047302f6f",
-  "sketch2vec/pipeline.py": "fdbec7df07a26361340354da499ce4b7d8499e14ed87a8eef650f6b7b4a9da70",
+  "sketch2vec/pipeline.py": "949c2ff34374d3f58366117931f7870e638eaf2ff3fbc9caeabb630f3c628dda",
   "sketch2vec/preprocess.py": "38c887418bf555e51c6de617cfb397d08e68be91b1250500f5baf8b5328a584a",
   "sketch2vec/fitting.py": "9bac0c85a821d3db5ef42dea0308eae0e0977552b07db4c3bcaf06d39ddcd5f9",
   "sketch2vec/primitives.py": "b226340fb14336aa6b000d7aee023b04197c4ca911e267502ed5e0684b11f055",
@@ -16,5 +16,9 @@
   "sketch2vec/editing.py": "a31afa83ffe7fafad0fd97fc626e57ed470a09b55d2454c5ba657cb08596cc42",
   "sketch2vec/ellipse_fit.py": "8ff9e374c246fd1ebb0a7b5d7a463528c0f75bd4e0438187910b93e6d164c1cb",
   "sketch2vec/batch_join.py": "af3351ae2ac75826ba3e4a5fb377d4b8b2bc1330c643d43ba5901e2f9957f61e",
-  "sketch2vec/cad_consolidate.py": "48e8d9adba84c9ff1be8ec13a0c95bb531a847b445b35c16057b7a3adfa6d58e"
+  "sketch2vec/cad_consolidate.py": "48e8d9adba84c9ff1be8ec13a0c95bb531a847b445b35c16057b7a3adfa6d58e",
+  "sketch2vec/local_repair.py": "4bd3738b17f92dd0bdd251b653d93e793b185882a8b9dd2057a64f20a1da56f0",
+  "sketch2vec/outline.py": "c8cf220dad0897d8da43a89cbf665f2171f416f37f88e8cf07767baebf1bf1e8",
+  "sketch2vec/outline_clip.py": "aae63bed41cf44ad14f25d35c1a2b3c9e228323880dbc108940a64a7973c1635",
+  "sketch2vec/partial_repair.py": "56cc0de7387b92990ad54b38117342ad647765e6d544630967706bf692141fca"
 }

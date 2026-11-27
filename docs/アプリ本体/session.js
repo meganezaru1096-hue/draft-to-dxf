@@ -42,15 +42,16 @@
     validateProject,
     init(e){
       this.editor=e;
-      const group=make('details','tools-pages');group.className='tool-group';group.open=true;group.append(make('summary',null,'図面・ページ管理'));
+      const group=make('details','tools-pages');group.className='tool-group';group.open=false;group.append(make('summary',null,'図面・ページ管理'));
       const body=make('div');body.className='tool-body';group.append(body);$('tools-input').after(group);
+      DraftLayout.register('pages',group);
       const list=make('select','workspacePages');list.setAttribute('aria-label','作業中の図面・ページ');list.onchange=()=>this.switchPage(list.value);body.append(list);
       const row=make('div');row.className='toolbar';
       const previous=make('button','previousPage','前の作業'),next=make('button','nextPage','次の作業');
       previous.onclick=()=>this.relative(-1);next.onclick=()=>this.relative(1);row.append(previous,next);body.append(row);
       const convertNext=make('button','convertNextPage','次ページを変換');convertNext.onclick=()=>this.nextPdf();body.append(convertNext);
-      const save=make('button','saveWorkspace','作業を保存');save.title='全ページと元の入力ファイルをまとめて保存';save.onclick=()=>this.save();
-      const label=make('label',null,'作業を開く'),open=make('input','openWorkspace');open.type='file';open.accept='.d2dw.json,application/json';
+      const save=make('button','saveWorkspace','全ページを保存');save.title='全ページと元の入力ファイルをまとめて保存';save.onclick=()=>this.save();
+      const label=make('label',null,'全ページの作業を開く'),open=make('input','openWorkspace');open.type='file';open.accept='.d2dw.json,application/json';
       open.onchange=async()=>{
         try{
           if(!open.files[0])return;

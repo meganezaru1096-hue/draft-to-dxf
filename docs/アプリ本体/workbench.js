@@ -42,7 +42,7 @@
       };
       e.setMode=value=>{
         e.trimDraft=null;mode(value);
-        const key={drawLine:'draw',drawCircle:'draw',drawArc:'draw',endpoint:'endpoint',extend:'extend',trimLine:'cut',measure:'measure'}[e.mode];
+        const key={drawLine:'draw',drawCircle:'draw',drawArc:'draw',endpoint:'endpoint',extend:'extend',trimLine:'cut',outline:'outline',partialRepair:'partialRepair',measure:'measure'}[e.mode];
         if(key)DraftLayout.reveal(key,false);
       };
       const commit=DraftMeasure.commit.bind(DraftMeasure);
@@ -108,7 +108,6 @@
 
       // Register new groups with the same navigation mechanism as existing commands.
       DraftLayout.register('productivity',prod);DraftLayout.register('properties',group);
-      for(const b of document.querySelectorAll('.tool-nav button'))b.addEventListener('click',()=>{for(const d of document.querySelectorAll('.tool-panel > details.tool-group'))if(d.id!=='tools-'+b.dataset.toolSection&&d.id!=='tools-properties')d.open=false;},true);
       e.canvas.addEventListener('pointermove',event=>{
         if(!e.doc||e.busy||!e.pointerInside)return;
         const p=e.world(e.position(event));
@@ -158,6 +157,7 @@
       }else{$('propertySummary').textContent=items.length?`${items.length}要素 · 合計長さ ${(items.reduce((n,x)=>n+DraftGeometry.length(x.s),0)*mm).toFixed(3)} mm`:'線を1つ選ぶと寸法を確認・編集できます。';this.propertyKey=null;}
       if(e.mode==='trimTo'){$('activeMode').textContent='切り詰め';$('instructionText').textContent=e.trimDraft?'②相手の線をクリック。赤が削除される側（Escで中止）':'①短くする側の端点をクリック → ②相手の線をクリック';}
       window.DraftSession?.update();
+      DraftLayout.refreshPanels?.(e);
     },
     applyProperties(e){try{if(e.busy||e.selected.size!==1)return;const {pi,si,s}=this.selected(e)[0],mm=this.scale(e),size=this.number('propertySize')/mm,angle=this.number('propertyAngle');if(!Number.isFinite(size)||size<=1e-6||size>1e7)throw Error('寸法は正の範囲内で指定してください。');const paths=structuredClone(e.doc.paths),p=paths[pi];let segment;
       if(s.type==='line'){const a=angle*Math.PI/180;segment={...s,p1:[s.p0[0]+size*Math.cos(a),s.p0[1]-size*Math.sin(a)]};}

@@ -78,6 +78,11 @@ self.onmessage = async (ev) => {
         curveProb.set(outTensor.data.subarray(3 * plane, 4 * plane));
         const message = { type: 'done', id: msg.id, probs: inkProb.buffer, junc: juncProb.buffer, curve: curveProb.buffer, runMs };
         const transfer = [inkProb.buffer, juncProb.buffer, curveProb.buffer];
+        if (msg.needLocalRepair) {
+          const skelProb = new Float32Array(plane);
+          skelProb.set(outTensor.data.subarray(plane, 2 * plane));
+          message.skel = skelProb.buffer; transfer.push(skelProb.buffer);
+        }
         if (chOut >= 8) {
           const semantic = new Float32Array(4 * plane);
           semantic.set(outTensor.data.subarray(4 * plane, 8 * plane));
@@ -352,6 +357,7 @@ self.onmessage = async (ev) => {
     const hasStructHeads = isV5 || (modelJson.channels_out >= 4);
     const hasSemanticHeads = modelJson.channels_out >= 8;
     const meta=modelJson.metadata||{};
+    const localRepairOptions=opts.local_repair===false?null:(meta.local_repair?.model?meta.local_repair:null);
     const tile=opts.tile??meta.tile??384,overlap=opts.overlap??meta.overlap??48;
     const edgeMode=opts.edge_mode??(opts.ragged===undefined?null:(opts.ragged?'ragged':'legacy'))??meta.edge_mode??(meta.ragged?'ragged':'legacy');
     const requestedWorkers=opts.workers??meta.workers??1;
@@ -378,6 +384,7 @@ self.onmessage = async (ev) => {
     const outJunc = hasStructHeads ? new Float32Array(n) : null;
     const outCurve = hasStructHeads ? new Float32Array(n) : null;
     const outSemantic = hasSemanticHeads ? new Float32Array(4*n) : null;
+    const outSkel = localRepairOptions ? new Float32Array(n) : null;
     const weight = new Float32Array(n);
 
     const queue = [];
@@ -425,7 +432,7 @@ self.onmessage = async (ev) => {
         const src=ch*n+(y0+Math.min(r,th-1))*width,dst=ch*plane+r*pw;
         for(let c=0;c<pw;c++)patch[dst+c]=feats[src+x0+Math.min(c,tw-1)];
       }
-      return callWorker(target,{type:'tile',ph,pw,patch:patch.buffer},[patch.buffer]).then(res=>({job,res,pw,plane}));
+      return callWorker(target,{type:'tile',ph,pw,patch:patch.buffer,needLocalRepair:!!localRepairOptions},[patch.buffer]).then(res=>({job,res,pw,plane}));
     };
     for (let qi = 0; qi < queue.length; qi+=pool.length) {
       if (seq !== runSeq || cancelled()) return null;
@@ -438,6 +445,7 @@ self.onmessage = async (ev) => {
       if (seq !== runSeq || cancelled()) return null;
       sessionRunMs+=res.runMs||0;
       const probs = new Float32Array(res.probs);
+      const skelTile=(outSkel&&res.skel)?new Float32Array(res.skel):null;
       const juncTile = (outJunc && res.junc) ? new Float32Array(res.junc) : null;
       const curveTile = (outCurve && res.curve) ? new Float32Array(res.curve) : null;
       const semanticTile=(outSemantic&&res.semantic)?new Float32Array(res.semantic):null;
@@ -459,6 +467,7 @@ self.onmessage = async (ev) => {
           const b = wyr * wx[c];
           const idxO = rowOut + c, idxP = rowP + c;
           out[idxO] += probs[idxP] * b;
+          if(skelTile)outSkel[idxO]+=skelTile[idxP]*b;
           if (juncTile) outJunc[idxO] += juncTile[idxP] * b;
           if (curveTile) outCurve[idxO] += curveTile[idxP] * b;
           if (semanticTile) for(let ch=0;ch<4;ch++)outSemantic[ch*n+idxO]+=semanticTile[ch*plane+idxP]*b;
@@ -475,10 +484,14 @@ self.onmessage = async (ev) => {
     const juncU8 = outJunc ? new Uint8Array(n) : null;
     const curveU8 = outCurve ? new Uint8Array(n) : null;
     const semanticU8 = outSemantic ? new Uint8Array(4*n) : null;
+    const inkU8=localRepairOptions?new Uint8Array(n):null;
+    const skelU8=localRepairOptions?new Uint8Array(n):null;
     for (let i = 0; i < n; i++) {
       const invW = 1.0 / Math.max(weight[i], 1e-6);
       const p = out[i] * invW;
       cleanGray[i] = p >= threshold ? 0 : 255;
+      if(inkU8)inkU8[i]=Math.max(0,Math.min(255,Math.round(p*255)));
+      if(skelU8)skelU8[i]=Math.max(0,Math.min(255,Math.round(outSkel[i]*invW*255)));
       if (juncU8) juncU8[i] = Math.max(0, Math.min(255, Math.round(outJunc[i] * invW * 255)));
       if (curveU8) curveU8[i] = Math.max(0, Math.min(255, Math.round(outCurve[i] * invW * 255)));
       if (semanticU8) for(let ch=0;ch<4;ch++)semanticU8[ch*n+i]=Math.max(0,Math.min(255,Math.round(outSemantic[ch*n+i]*invW*255)));
@@ -488,6 +501,7 @@ self.onmessage = async (ev) => {
       juncU8,
       curveU8,
       semanticU8,
+      ...(localRepairOptions?{inkU8,skelU8,normalizedOriginalU8:workGray.slice(),localRepairOptions}:{}),
       width,
       height,
       tilesTotal,

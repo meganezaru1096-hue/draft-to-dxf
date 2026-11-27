@@ -2,7 +2,7 @@ window.DraftTextTools={
   init(e){
     const style=document.createElement('style');style.textContent='#tools-text .tool-body{display:grid;gap:8px}#tools-text select,#tools-text textarea{width:100%;min-width:0;max-width:100%;box-sizing:border-box}#tools-text textarea{font:12px Meiryo,sans-serif;padding:8px;border:1px solid #c8d6d3;border-radius:6px;resize:vertical}#textRecognitionHint{overflow-wrap:anywhere}#acceptEngineeringSuggestion[hidden]{display:none}';document.head.append(style);
     this.editor=e;const make=(tag,id,text)=>{const n=document.createElement(tag);if(id)n.id=id;if(text)n.textContent=text;return n;};
-    const group=make('details','tools-text');group.className='tool-group';group.open=true;group.append(make('summary',null,'文字'));
+    const group=make('details','tools-text');group.className='tool-group';group.open=true;group.append(make('summary',null,'文字の確認・OCR'));
     const body=make('div');body.className='tool-body';group.append(body);
     const label=make('label',null,'文字を表示'),show=make('input','showSemanticText');show.type='checkbox';show.checked=true;show.onchange=()=>e.draw();label.prepend(show);body.append(label,make('p','textCount'));
     const list=make('select','semanticTextList');list.setAttribute('aria-label','文字を選択');list.onchange=()=>this.read(e);body.append(list);
@@ -14,7 +14,7 @@ window.DraftTextTools={
     const suggestion=make('button','acceptEngineeringSuggestion','工学用語の補正候補を反映');suggestion.onclick=()=>{if(e.busy)return;const t=e.doc?.texts?.[Number(list.value)],next=t?.source!=='pdf'&&window.DraftOcrDomain?.suggest(t.text);if(!next)return;content.value=next;apply.click();};
     body.append(apply,remove,verticalLabel,ocr,suggestion,make('p','textRecognitionHint','DXFのTEXTレイヤーに文字として保存します。スキャン図面のOCRは任意実行・元に戻す対応です。'));
     document.getElementById('tools-output').before(group);DraftLayout.register('text',group);
-    const nav=document.createElement('button');nav.type='button';nav.className='nav-button';nav.dataset.toolSection='text';nav.textContent='文字';nav.onclick=()=>DraftLayout.reveal('text',true);document.querySelector('.tool-nav').append(nav);this.update(e);
+    this.update(e);
   },
   changed(e){e.dirty=true;e.editSeq=(e.editSeq||0)+1;DraftHistory.commit(e);this.signature=null;e.update();e.draw();},
   read(e){const t=e.doc?.texts?.[Number(document.getElementById('semanticTextList').value)];document.getElementById('semanticTextValue').value=t?.text||'';document.getElementById('textRecognitionHint').textContent=t?(t.source==='pdf'?'PDFの文字情報':t.source==='ocr'?`日本語OCR・認識スコア ${t.confidence.toFixed(0)}`:'手修正')+' ／ DXF: TEXTレイヤー。原文：'+t.raw:'文字はTEXTレイヤーに保存します。';const button=document.getElementById('acceptEngineeringSuggestion');if(button){const next=t&&t.source!=='pdf'&&window.DraftOcrDomain?.suggest(t.text);button.hidden=!next;button.textContent=next?'補正候補：'+next:'工学用語の補正候補を反映';button.disabled=e.busy||!next;}},

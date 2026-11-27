@@ -44,7 +44,8 @@ const editor=window.draftEditor=new DraftEditor(document.getElementById('preview
   if(!recovering&&message.action!=='historyRestore')DraftHistory.begin(editor,DraftCommandLabel(message));
   editor.lastRequest={...message};
   setBusy(true);
-  worker.postMessage(message,message.pixels?[message.pixels]:[]);
+  const transfer=[message.pixels,message.aiInkBytes,message.aiSkelBytes,message.aiOriginalBytes].filter(v=>v instanceof ArrayBuffer);
+  worker.postMessage(message,[...new Set(transfer)]);
 });
 let pendingProject=null,nextMetadata=null;
 const repairFields=['repairGap','repairOffset','repairAngle'];
@@ -136,6 +137,17 @@ function bindWorker(){
     }
     if(data.kind==='edited'){
       const editLabel=editor.lastRequest?DraftCommandLabel(editor.lastRequest):'編集';
+      if(data.response.partialRepair&&!data.response.partialRepair.changed){
+        DraftHistory.abort(editor);editor.lastRequest=null;setBusy(false);
+        window.DraftPartialRepair?.receive(editor,data.response.partialRepair);
+        editor.draw();return;
+      }
+      if(data.response.outlineStats&&!data.response.outlineStats.changed){
+        DraftHistory.abort(editor);editor.lastRequest=null;setBusy(false);
+        status.textContent=DraftWorkflow.outlineMessage(data.response.outlineStats);
+        document.getElementById('outlineHint').textContent=status.textContent;
+        return;
+      }
       if(recovering){
         recovering=false;pendingProject=null;editor.revision=data.response.revision;
         window.DraftRuntime.failed=false;window.probeState.ready=true;setBusy(false);
@@ -153,11 +165,20 @@ function bindWorker(){
         });
         input.value='';document.getElementById('pageCount').textContent='';
         window.DraftSession?.restored(editor);
+        window.DraftLayout?.switchPane('edit');
       }else{
         editor.acceptEdit(data.response);
       }
       setBusy(false);
       status.textContent=editLabel+'を反映しました。';
+      if(data.response.partialRepair){
+        window.DraftPartialRepair?.receive(editor,data.response.partialRepair);
+      }
+      if(data.response.outlineStats){
+        editor.regionBox=null;editor.setMode('select');
+        status.textContent=DraftWorkflow.outlineMessage(data.response.outlineStats);
+        document.getElementById('outlineHint').textContent=status.textContent;
+      }
     }
     if(data.kind==='ready'){
       await DraftSettings.ready;
@@ -180,6 +201,7 @@ function bindWorker(){
       document.getElementById('dpi').value=meta.dpi;
       editor.setDocument(r,{...meta,background:meta.originalBackground||(r.trace?.gray_png?'data:image/png;base64,'+r.trace.gray_png:null)});
       window.DraftSession?.converted(editor,meta.totalPages||null);
+      window.DraftLayout?.switchPane('edit');
     }
   };
 }
@@ -274,7 +296,7 @@ async function convertSelected(eventOrOptions=null){
       if(canvas.draftNativePaths)canvas.draftNativePaths=DraftTexts.removeOutlines(canvas.draftNativePaths,texts);
       tracing=DraftJapaneseOcr.eraseRecognized(tracing,texts);
     }
-    let aiGrayBuffer=null,aiJuncBuffer=null,aiCurveBuffer=null,aiSemanticBuffer=null,aiUpstreamOptions=null,aiNote=null;
+    let aiGrayBuffer=null,aiJuncBuffer=null,aiCurveBuffer=null,aiSemanticBuffer=null,aiUpstreamOptions=null,aiNote=null,aiRepair={};
     if(useAiPreprocess&&window.DraftPreprocessMl){
       const wAi=canvas.width,hAi=canvas.height;
       let srcGray;
@@ -295,6 +317,7 @@ async function convertSelected(eventOrOptions=null){
       aiCurveBuffer=aiRes.curveU8?aiRes.curveU8.buffer:null;
       aiSemanticBuffer=aiRes.semanticU8?aiRes.semanticU8.buffer:null;
       aiUpstreamOptions=window.DraftPreprocessMlModel?.metadata?.upstream||null;
+      if(aiRes.localRepairOptions)aiRepair={aiInkBytes:aiRes.inkU8.buffer,aiSkelBytes:aiRes.skelU8.buffer,aiOriginalBytes:aiRes.normalizedOriginalU8.buffer,aiLocalRepairOptions:aiRes.localRepairOptions};
       aiNote=`高精度変換（${aiRes.modelName||'CADLineUNet v5.2 (4-head ONNX)'}）適用：${aiRes.elapsedMs}ms（${aiRes.tilesTotal}タイル中 空${aiRes.tilesSkipped}スキップ）`;
     }
     const mergedNote=[canvas.draftImportNote,aiNote].filter(Boolean).join(' / ')||undefined;
@@ -313,6 +336,7 @@ async function convertSelected(eventOrOptions=null){
     if(aiJuncBuffer)transfers.push(aiJuncBuffer);
     if(aiCurveBuffer)transfers.push(aiCurveBuffer);
     if(aiSemanticBuffer)transfers.push(aiSemanticBuffer);
+    for(const key of ['aiInkBytes','aiSkelBytes','aiOriginalBytes'])if(aiRepair[key])transfers.push(aiRepair[key]);
     worker.postMessage({
       kind:'image',width:canvas.width,height:canvas.height,pixels,channels,dpi,diagnostics,
       noise:Number(document.getElementById('noise').value),
@@ -321,6 +345,7 @@ async function convertSelected(eventOrOptions=null){
       aiCurveBytes:aiCurveBuffer,
       aiSemanticBytes:aiSemanticBuffer,
       aiUpstreamOptions,
+      ...aiRepair,
       textAligned:texts.length>0||Math.abs(deskewAngle)>=1e-3||!!aiGrayBuffer,
       preDeskewedAngle:deskewAngle,
       ocrTextBoxes,
