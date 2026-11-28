@@ -78,7 +78,7 @@ window.DraftEditor = class {
   }
   setMode(mode){
     // Removed tools must not be reactivated by old integrations or key settings.
-    if(['pan','splitLine','region','trimTo'].includes(mode))mode='select';
+    if(['pan','splitLine','region','trimTo','outline'].includes(mode))mode='select';
     if(this.mode==='measure'&&mode!=='measure'&&this.measurePoints.length===1)this.measurePoints=[];
     DraftMeasure.dismiss(this);
     this.drag=null;this.stopBrush();this.cyclePick=null;this.hoverKey=null;this.moveSnap=null;
@@ -281,16 +281,16 @@ window.DraftEditor = class {
         c.save();c.strokeStyle=this.altSubtract?'#dc2626':'#0057d9';c.lineWidth=1.5/v.scale;c.beginPath();c.arc(wp[0],wp[1],4/v.scale,0,Math.PI*2);c.stroke();c.restore();
       }
     }
-    if(this.drag&&!this.drag.pan&&!this.drag.move&&!this.drag.paint&&['select','region','outline','partialRepair'].includes(this.mode)){
+    if(this.drag&&!this.drag.pan&&!this.drag.move&&!this.drag.paint&&['select','region','partialRepair'].includes(this.mode)){
       const a=this.world(this.drag.start),b=this.world(this.drag.last);
       const boxMode=this.resolveBoxMode(this.drag.start,this.drag.last);
       const isTouch=this.mode==='select'&&boxMode==='touch';
       const isSubtract=this.mode==='select'&&this.drag.subtract;
       c.save();
-      c.strokeStyle=['region','outline','partialRepair'].includes(this.mode)?'#158483':isSubtract?'#dc2626':isTouch?'#0f7a3e':'#0057d9';
-      c.fillStyle=['region','outline','partialRepair'].includes(this.mode)?'rgba(21,132,131,.08)':isSubtract?'rgba(220,38,38,.08)':isTouch?'rgba(15,122,62,.08)':'rgba(0,87,217,.08)';
+      c.strokeStyle=['region','partialRepair'].includes(this.mode)?'#158483':isSubtract?'#dc2626':isTouch?'#0f7a3e':'#0057d9';
+      c.fillStyle=['region','partialRepair'].includes(this.mode)?'rgba(21,132,131,.08)':isSubtract?'rgba(220,38,38,.08)':isTouch?'rgba(15,122,62,.08)':'rgba(0,87,217,.08)';
       c.lineWidth=1.2/v.scale;
-      c.setLineDash(isTouch||['region','outline','partialRepair'].includes(this.mode)?[5/v.scale,3/v.scale]:[]);
+      c.setLineDash(isTouch||['region','partialRepair'].includes(this.mode)?[5/v.scale,3/v.scale]:[]);
       c.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);
       c.strokeRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);
       c.setLineDash([]);c.restore();
@@ -414,11 +414,11 @@ window.DraftEditor = class {
     if(this.busy)return;
     if(this.mode==='partialRepair'){
       if(Math.hypot(end[0]-start[0],end[1]-start[1])<4)window.DraftPartialRepair?.pick(this,this.world(end));
-      else window.DraftPartialRepair?.box(this,this.world(start),this.world(end));
+      else window.DraftPartialRepair?.box(this,this.world(start),this.world(end),add);
       return;
     }
     if(this.mode==='trimTo'){if(Math.hypot(end[0]-start[0],end[1]-start[1])<4)DraftWorkbench.pickTrim(this,this.world(end));return;}
-    if(['region','outline'].includes(this.mode)){DraftWorkflow.box(this,this.world(start),this.world(end));return;}
+    if(this.mode==='region'){DraftWorkflow.box(this,this.world(start),this.world(end));return;}
     if(DraftCut.active(this)){if(Math.hypot(end[0]-start[0],end[1]-start[1])<4)DraftCut.pick(this,this.world(end));return;}
     if(this.mode==='endpoint'){if(Math.hypot(end[0]-start[0],end[1]-start[1])<4)DraftEndpoint.pick(this,this.world(end));return;}
     if(this.mode==='extend'){if(Math.hypot(end[0]-start[0],end[1]-start[1])<4)DraftExtend.pick(this,this.world(end));return;}

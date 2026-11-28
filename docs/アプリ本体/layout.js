@@ -10,7 +10,7 @@
     drawLine:'M5 19 19 5 M3 17h4v4H3z M17 3h4v4h-4z',drawCircle:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M10 12h4 M12 10v4',drawArc:'M4 18a8 12 0 0 1 16 0 M2 16h4v4H2z M18 16h4v4h-4z',
     endpoint:'M4 18 17 5 M2 16h4v4H2z M15 3h4v4h-4z M16 15h6 M19 12v6',splitLine:'M3 19 9 13 M15 7l6-6 M8 5l11 14 M8 19l11-14',trimLine:'M3 12h6 M15 12h6 M9 8v8 M15 8v8 M10 10l4 4 M14 10l-4 4',trimTo:'M3 12h11 M14 4v16 M17 12h4 M17 9l3 3-3 3',
     extend:'M3 12h14 M12 7l5 5-5 5 M20 3v18',
-    measure:'m3 15 12-12 6 6-12 12z M8 10l3 3 M12 6l3 3 M4 14l3 3',region:'M9 3H3v6 M15 3h6v6 M3 15v6h6 M21 15v6h-6 M8 8h8v8H8z',outline:'M4 4h16v16H4z M9 9h6v6H9z',
+    measure:'m3 15 12-12 6 6-12 12z M8 10l3 3 M12 6l3 3 M4 14l3 3',region:'M9 3H3v6 M15 3h6v6 M3 15v6h6 M21 15v6h-6 M8 8h8v8H8z',
     horizontal:'M3 12h18 M3 8v8 M21 8v8',vertical:'M12 3v18 M8 3h8 M8 21h8',merge:'M3 6h6l3 6h9 M3 18h6l3-6',mergeArcs:'M12 3a9 9 0 0 1 9 9 M12 21a9 9 0 0 1-9-9 M8 3h4v4 M12 17v4h4 M9 12h6 M12 9v6',corner:'M5 3v16h16 M9 15h4v4',linearize:'M3 18Q12 0 21 18 M3 18h18',delete:'M3 6h18 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7',
     undo:'M9 5 4 10l5 5 M4 10h10a6 6 0 0 1 6 6v3',redo:'m15 5 5 5-5 5 M20 10H10a6 6 0 0 0-6 6v3',saveProject:'M4 3h13l3 3v15H4z M8 3v6h8V3 M8 21v-7h8v7',
     input:'M3 7h7l2 3h9l-3 10H3z M3 7V4h8l2 3',edit:'m4 17 10-10 3 3L7 20H4z M14 7l3-3 3 3-3 3',draw:'m4 17 10-10 3 3L7 20H4z M14 7l3-3 3 3-3 3',check:'M9 4h6v3H9z M9 5H5v16h14V5h-4 M8 14l3 3 5-6',output:'M12 3v12 M8 11l4 4 4-4 M4 16v5h16v-5',
@@ -114,8 +114,6 @@
   // Retain the internal controls for existing drawing/protection data, not as tools.
   const retiredRegion=sidebar.querySelector('#tools-region');retiredRegion.hidden=true;retiredRegion.inert=true;
   group('partialRepair','部分修復・描き直し',[el('partialRepairTools')]);
-  group('outline','密集線・黒つぶれを輪郭化',[el('outlineTools')]);
-  el('mode').add(new Option('輪郭化の範囲','outline'));
   group('check','03  気になる線を点検',[el('gapControls'),el('inspectionAdvanced'),el('inspectionPanel')]);
   group('draw','04  直線・円・円弧を描く',[toolbar('drawLine'),el('drawPrecision'),el('snapTools')]);
   group('arc','円・円弧の数値編集',[el('arcProperties')]);
@@ -134,7 +132,7 @@
   helpBody.append(el('summary').closest('details'),el('log').closest('details'));help.append(helpBody);register('help',help);
 
   const panelShortcuts=make('div','toolbar panel-shortcuts');
-  for(const [key,label] of [['partialRepair','部分修復'],['draw','作図の設定'],['outline','密集線を輪郭化'],['measure','実寸・縮尺'],['output','出力サイズ']]){const b=make('button','',label);b.type='button';b.onclick=()=>reveal(key,true);panelShortcuts.append(b);}
+  for(const [key,label] of [['partialRepair','部分修復'],['draw','作図の設定'],['measure','実寸・縮尺'],['output','出力サイズ']]){const b=make('button','',label);b.type='button';b.onclick=()=>reveal(key,true);panelShortcuts.append(b);}
   panes.get('edit').prepend(panelShortcuts);
   // Repeated action sources stay in the DOM for shortcuts, with one visible entry.
   for(const id of ['horizontal','vertical','merge','align','mergeArcs','mergeEllipse','corner','linearize','delete','drawLine','drawCircle','drawArc','moveEndpoint','extendTo','trimLine','measureMode'])el(id).hidden=true;
@@ -148,7 +146,7 @@
   // Tool shortcuts live beside the drawing; detailed settings stay in the sidebar.
   const toolStrip=make('div','mode-strip');toolStrip.setAttribute('role','toolbar');toolStrip.setAttribute('aria-label','図面の操作');
   const proxies=[];
-  const modes=[['select','選択','V'],['drawLine','直線','L'],['drawCircle','円','C'],['drawArc','円弧','A'],['endpoint','端点','E'],['extend','延長/短縮',''],['trimLine','区間削除','T'],['outline','輪郭化',''],['measure','測定','M']];
+  const modes=[['select','選択','V'],['drawLine','直線','L'],['drawCircle','円','C'],['drawArc','円弧','A'],['endpoint','端点','E'],['extend','延長/短縮',''],['trimLine','区間削除','T'],['measure','測定','M']];
   for(const [mode,label,key] of modes){
     const b=make('button','mode-button',label);b.type='button';b.id='tool-'+mode;b.dataset.mode=mode;b.title=label+(key?'（'+key+'）':'');if(key)b.setAttribute('aria-keyshortcuts',key);
     b.prepend(icon(mode));
@@ -196,7 +194,7 @@
     },
     update(e){
       const mode=e.mode;
-      for(const [value,label] of modes){const b=el('tool-'+value),active=value===mode;b.disabled=e.busy||!e.doc||(value==='outline'&&!e.background);b.classList.toggle('active-tool',active);b.setAttribute('aria-pressed',String(active));if(active)modeBadge.textContent=label;}
+      for(const [value,label] of modes){const b=el('tool-'+value),active=value===mode;b.disabled=e.busy||!e.doc;b.classList.toggle('active-tool',active);b.setAttribute('aria-pressed',String(active));if(active)modeBadge.textContent=label;}
       for(const id of ['drawLine','drawCircle','drawArc','moveEndpoint','extendTo','trimLine','measureMode']){
         const active=({moveEndpoint:'endpoint',extendTo:'extend',measureMode:'measure'}[id]||id)===mode;
         el(id).classList.toggle('active-tool',active);el(id).setAttribute('aria-pressed',String(active));
@@ -215,7 +213,7 @@
       const cycleNote=e.cyclePick?.total>1?` · 重なり ${e.cyclePick.index}/${e.cyclePick.total}`:'';
       selectionInfo.textContent=refs.length?`${refs.length}個選択 · 直線${lines} / 円弧${arcs}${ellipses?' / 楕円'+ellipses:''}${cycleNote}`:'線を選ぶと修正できます';
       if(mode==='partialRepair')modeBadge.textContent='部分修復';
-      const source=mode==='partialRepair'?'partialRepairHint':mode==='outline'?'outlineHint':mode==='endpoint'?'endpointHint':mode==='extend'?'extendHint':mode==='trimLine'?'cutHint':mode.startsWith('draw')?'drawHint':mode==='measure'?'measureResult':null;
+      const source=mode==='partialRepair'?'partialRepairHint':mode==='endpoint'?'endpointHint':mode==='extend'?'extendHint':mode==='trimLine'?'cutHint':mode.startsWith('draw')?'drawHint':mode==='measure'?'measureResult':null;
       const undoKey=window.DraftSettings?.key('undo');
       hint.textContent=source?el(source).textContent:'Altでなぞり選択 / 選択線をドラッグで吸着移動（Shiftで直交） / Ctrlで追加 / Ctrl＋Altで重なり順送り / '+(undoKey?undoKey+'で元に戻す':'元に戻すボタンで取り消し');
       if(e.altPainting&&mode==='select'){modeBadge.textContent=e.altSubtract?'なぞり解除':'なぞり選択';hint.textContent=e.altSubtract?'Alt＋Shiftを押したまま線をなぞると選択解除 / 離すと終了':'Altを押したまま線をなぞると追加選択 / Shift併用で解除 / 離すと終了';}
@@ -237,5 +235,5 @@
     }
   };
   const observer=new MutationObserver(()=>{if(window.draftEditor)DraftLayout.update(window.draftEditor);});
-  for(const id of ['drawHint','endpointHint','extendHint','cutHint','measureResult','regionHint','status'])observer.observe(el(id),{childList:true,characterData:true,subtree:true});
+  for(const id of ['drawHint','endpointHint','extendHint','cutHint','measureResult','regionHint','partialRepairHint','status'])observer.observe(el(id),{childList:true,characterData:true,subtree:true});
 })();

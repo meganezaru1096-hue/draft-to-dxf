@@ -42,7 +42,7 @@
       };
       e.setMode=value=>{
         e.trimDraft=null;mode(value);
-        const key={drawLine:'draw',drawCircle:'draw',drawArc:'draw',endpoint:'endpoint',extend:'extend',trimLine:'cut',outline:'outline',partialRepair:'partialRepair',measure:'measure'}[e.mode];
+        const key={drawLine:'draw',drawCircle:'draw',drawArc:'draw',endpoint:'endpoint',extend:'extend',trimLine:'cut',partialRepair:'partialRepair',measure:'measure'}[e.mode];
         if(key)DraftLayout.reveal(key,false);
       };
       const commit=DraftMeasure.commit.bind(DraftMeasure);
@@ -122,13 +122,15 @@
           $('snapDetail').textContent=kind||'自由位置';
         }
       });
+      $('dxfLayerMode')?.addEventListener('change',()=>this.update(e));
       this.update(e);
     },
     snapControl(e){return e.mode==='measure'?'measureSnap':e.mode==='endpoint'?'endpointSnap':['trimTo','splitLine','trimLine'].includes(e.mode)?'cutSnap':'drawSnap';},
     update(e){
       if(!this.editor||!$('outputSummary'))return;
       const dpi=Number($('dpi').value),mm=this.scale(e),valid=Number.isFinite(dpi)&&dpi>=1&&dpi<=9600;
-      $('outputSummary').textContent=e.doc&&valid?`DXF · mm · ${(e.doc.width*mm).toFixed(2)} × ${(e.doc.height*mm).toFixed(2)}（${e.calibration?'実寸設定済み':'用紙寸法・実寸未設定'}）\nPDF · ${(e.doc.width*25.4/dpi).toFixed(2)} × ${(e.doc.height*25.4/dpi).toFixed(2)} mm · ${dpi} dpi換算`:'用紙換算DPIを1〜9600で指定してください。';
+      const dxfLayerText=$('dxfLayerMode')?.value==='single'?'GEOMETRY統一':'AIレイヤー分け';
+      $('outputSummary').textContent=e.doc&&valid?`DXF · mm · ${(e.doc.width*mm).toFixed(2)} × ${(e.doc.height*mm).toFixed(2)}（${e.calibration?'実寸設定済み':'用紙寸法・実寸未設定'} / ${dxfLayerText}）\nPDF · ${(e.doc.width*25.4/dpi).toFixed(2)} × ${(e.doc.height*25.4/dpi).toFixed(2)} mm · ${dpi} dpi換算`:'用紙換算DPIを1〜9600で指定してください。';
       if(e.doc&&valid){if(this.boundsCache?.paths!==e.doc.paths){const b=[Infinity,Infinity,-Infinity,-Infinity];for(const path of e.doc.paths){for(const s of path.segments){const q=e.bounds(s);b[0]=Math.min(b[0],q[0]);b[1]=Math.min(b[1],q[1]);b[2]=Math.max(b[2],q[2]);b[3]=Math.max(b[3],q[3]);}}this.boundsCache={paths:e.doc.paths,b};}const b=this.boundsCache.b;if(b.every(Number.isFinite)){$('outputSummary').textContent+=`\n出力する線の範囲 · ${((b[2]-b[0])*mm).toFixed(2)} × ${((b[3]-b[1])*mm).toFixed(2)} mm（DXF）`;if(b[0]<0||b[1]<0||b[2]>e.doc.width||b[3]>e.doc.height)$('outputSummary').textContent+='\n注意：用紙外の線があります。DXFには残りますが、PDFでは切れます。';}}
       for(const id of ['saveProject','exportPdf','exportDxf'])$(id).disabled=!e.doc||!!e.comparing||!!e.pendingPreview||!!e.pendingMove||!!e.drag?.move?.started;
       e.undo=!!e.commandUndo?.length;e.redo=!!e.commandRedo?.length;$('undo').disabled=e.busy||!e.undo;$('redo').disabled=e.busy||!e.redo;$('undoScale').disabled=$('undo').disabled;

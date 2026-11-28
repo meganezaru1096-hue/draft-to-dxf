@@ -7,6 +7,7 @@
     ['drawLine','直線を描く','L','tool-drawLine'],['drawCircle','円を描く','C','tool-drawCircle'],['drawArc','円弧を描く','A','tool-drawArc'],
     ['endpoint','端点を動かす','E','tool-endpoint'],['trimLine','区間削除','T','tool-trimLine'],
     ['extend','相手まで延長・短縮','','tool-extend'],
+    ['partialRepair','部分修復','','partialRepairMode'],
     ['copySelected','選択を複写','','copySelected'],['moveSelected','選択を数値移動','','moveSelected'],['offsetSelected','オフセット複写','','offsetSelected'],
     ['filletSelected','角をR丸め','','filletSelected'],['rotateSelected','選択を回転','','rotateSelected'],['mirrorH','選択を左右反転','','mirrorH'],['mirrorV','選択を上下反転','','mirrorV'],
     ['toggleOriginal','下絵の表示切替','','showOriginal'],
@@ -30,12 +31,12 @@
   const controls=sections.flatMap(s=>s[2]);
   const doubleClickLegacyFields=[['doubleClickGap','repairGap'],['doubleClickWidth','repairOffset'],['doubleClickAngle','repairAngle']];
   // Keep operation parameters and drawing dimensions separate from preferences.
-  const savedControls=new Set([...controls,'noise','pdfDpi','pdfInputMode','textMode','showOriginal','opacity','drawAxis','boxSelection']);
+  const savedControls=new Set([...controls,'noise','pdfDpi','pdfInputMode','textMode','showOriginal','opacity','drawAxis','boxSelection','partialProposalMode','partialMultiBox','dxfLayerMode']);
   const defaults=Object.fromEntries([...savedControls].map(id=>[id,$(id).type==='checkbox'?$(id).checked:$(id).value]));
   const defaultKeys=Object.fromEntries(actions.map(([id,,key])=>[id,key]));
   const storageKey='draft-to-dxf-settings-v1';let keys={...defaultKeys},values={...defaults},storageError='',restoredRecord=null,savedAt=0,revision=0,applying=false;
   const validKey=key=>typeof key==='string'&&(key===''||/^(Ctrl\+)?(Shift\+)?([A-Z0-9]|Delete|F[2-4]|F[6-9]|F10)$/.test(key))&&!/^Ctrl\+(Shift\+)?([WTNRLOPQ]|F4|F6)$/.test(key)&&key!=='Ctrl+Shift+Delete';
-  const optionalActions=new Set(['extend','copySelected','moveSelected','offsetSelected','mergeEllipse','filletSelected','rotateSelected','mirrorH','mirrorV','toggleOriginal']);
+  const optionalActions=new Set(['extend','partialRepair','copySelected','moveSelected','offsetSelected','mergeEllipse','filletSelected','rotateSelected','mirrorH','mirrorV','toggleOriginal']);
   function completeKeys(raw,migrate=false){if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;const next={};for(const [id] of actions){const value=optionalActions.has(id)&&!Object.hasOwn(raw,id)?'':raw[id];if(!validKey(value))return null;next[id]=value;}const bound=Object.values(next).filter(Boolean);if(new Set(bound).size!==bound.length)return null;if(migrate&&next.delete==='Delete'&&!Object.entries(next).some(([id,key])=>id!=='delete'&&key==='D'))next.delete='D';return next;}
   function validValue(id,value){const n=$(id);if(!n)return false;if(n.tagName==='SELECT')return typeof value==='string'&&[...n.options].some(o=>o.value===value);return n.type==='checkbox'?typeof value==='boolean':typeof value==='string'&&value.trim()!==''&&Number.isFinite(Number(value))&&(!n.min||Number(value)>=Number(n.min))&&(!n.max||Number(value)<=Number(n.max));}
   const isRecord=data=>data?.version===1&&data.values&&typeof data.values==='object'&&!Array.isArray(data.values);

@@ -127,11 +127,15 @@ function bindWorker(){
       if(!window.probeState.ready){window.DraftRuntime.failed=true;setBusy(true);}
     }
     if(data.kind==='editError'){
+      const failedKind=editor.lastRequest?.kind;
       editor.pendingTexts=null;
       pendingProject=null;editor.lastRequest=null;editor.pendingRotationMeta=null;editor.pendingMove=null;
       if(window.DraftSession){DraftSession.switching=null;DraftSession.pendingWorkspace=null;}
       DraftHistory.abort(editor);
       fail(data.text);
+      if(failedKind==='partialRepair'||failedKind==='partialRepairApply'||failedKind==='partialRepairApplyAll'){
+        window.DraftPartialRepair?.onError(editor,extractErrorMessage(data.text),failedKind);
+      }
       setBusy(false);
       editor.draw();
     }
@@ -141,12 +145,6 @@ function bindWorker(){
         DraftHistory.abort(editor);editor.lastRequest=null;setBusy(false);
         window.DraftPartialRepair?.receive(editor,data.response.partialRepair);
         editor.draw();return;
-      }
-      if(data.response.outlineStats&&!data.response.outlineStats.changed){
-        DraftHistory.abort(editor);editor.lastRequest=null;setBusy(false);
-        status.textContent=DraftWorkflow.outlineMessage(data.response.outlineStats);
-        document.getElementById('outlineHint').textContent=status.textContent;
-        return;
       }
       if(recovering){
         recovering=false;pendingProject=null;editor.revision=data.response.revision;
@@ -173,11 +171,6 @@ function bindWorker(){
       status.textContent=editLabel+'を反映しました。';
       if(data.response.partialRepair){
         window.DraftPartialRepair?.receive(editor,data.response.partialRepair);
-      }
-      if(data.response.outlineStats){
-        editor.regionBox=null;editor.setMode('select');
-        status.textContent=DraftWorkflow.outlineMessage(data.response.outlineStats);
-        document.getElementById('outlineHint').textContent=status.textContent;
       }
     }
     if(data.kind==='ready'){
@@ -384,7 +377,8 @@ for(const[id,kind]of[['exportDxf','dxf'],['exportPdf','pdf']])document.getElemen
       status.textContent='PDF用日本語フォントを読み込んでいます…';
       await DraftExport.ensurePdfFont();
     }
-    DraftExport.download(DraftExport[kind](editor.doc,Number(document.getElementById('dpi').value),editor.calibration?.mmPerPixel),basename()+'_edited.'+kind);
+    const dxfOpts=kind==='dxf'?{layerMode:document.getElementById('dxfLayerMode')?.value||'ai'}:undefined;
+    DraftExport.download(DraftExport[kind](editor.doc,Number(document.getElementById('dpi').value),editor.calibration?.mmPerPixel,dxfOpts),basename()+'_edited.'+kind);
     status.textContent=kind.toUpperCase()+'のダウンロードを開始しました。作業再開には編集データも保存してください。';
   }catch(error){fail(String(error));}
 };

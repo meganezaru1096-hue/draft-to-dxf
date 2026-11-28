@@ -11,9 +11,10 @@ window.DraftExport = (() => {
       tangent(t){const ct=Math.cos(t),st=Math.sin(t);return [vx*ct-ux*st,vy*ct-uy*st];}
     };
   }
-  function dxf(doc,dpi,mmPerPixel=null) {
+  function dxf(doc,dpi,mmPerPixel=null,options=null) {
     check(doc,dpi); const scale=mmPerPixel??25.4/dpi;
     if(!Number.isFinite(scale)||scale<1e-6||scale>1e6)throw Error('DXFの縮尺が不正です。');
+    const singleLayer=options?.layerMode==='single';
     const w=doc.width*scale,h=doc.height*scale;
     const entityLines=[];
     const layerColors={GEOMETRY:7,HATCH:8,CENTER_DASH:1,TEXT_ANNO:3},usedLayers=new Set();
@@ -23,7 +24,7 @@ window.DraftExport = (() => {
     const track=(mx,my)=>{if(mx<minX)minX=mx;if(mx>maxX)maxX=mx;if(my<minY)minY=my;if(my>maxY)maxY=my;};
     const point=(p,base)=>{const mx=p[0]*scale,my=h-p[1]*scale;track(mx,my);etag(base,n(mx));etag(base+10,n(my));etag(base+20,0);};
     for(const p of doc.paths){
-      const layer=Object.hasOwn(layerColors,p.layer)?p.layer:'GEOMETRY';
+      const layer=!singleLayer&&Object.hasOwn(layerColors,p.layer)?p.layer:'GEOMETRY';
       const style=DraftLineStyle.get(p),attributes=()=>{usedLayers.add(layer);etag(6,style.name);etag(62,layer==='GEOMETRY'?style.aci:256);};
       for(const s of p.segments){
         if(s.type==='ellipse'){
